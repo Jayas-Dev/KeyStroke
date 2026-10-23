@@ -1,0 +1,1694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Keystroke</title>
+<style>
+:root{
+  --bg:#f1f3f6;--surface:#e3e8ef;--ink:#18212d;--dim:#7f8b9c;--line:#d3dae4;
+  --accent:#2f5bff;--accent-ink:#fff;--err:#dc3545;
+  --serif:ui-serif,"Iowan Old Style","Charter","Palatino Linotype",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+:root[data-theme=dark]{
+  --bg:#0e131b;--surface:#19212c;--ink:#e7ecf3;--dim:#5b6a7d;--line:#243040;
+  --accent:#7d98ff;--accent-ink:#0e131b;--err:#ff6b78;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-tap-highlight-color:transparent}
+body{min-height:100vh;min-height:100dvh;display:flex;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 20px max(18px,env(safe-area-inset-bottom))}
+.app{width:100%;max-width:1120px;display:flex;flex-direction:column;min-height:calc(100dvh - 36px)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+header{display:flex;align-items:center;justify-content:space-between;height:44px}
+.logo{font-family:var(--serif);font-weight:700;font-size:1.3rem;letter-spacing:-.01em}
+.logo i{font-style:normal;color:var(--accent)}
+.hdr-r{display:flex;align-items:center;gap:5px}.hdr-control{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-width:48px}.hdr-label{font-size:9px;line-height:11px;letter-spacing:.08em;color:var(--dim);font-weight:600}.theme{width:40px;height:29px;border-radius:10px;display:grid;place-items:center;color:var(--dim)}
+.theme:hover{color:var(--ink);background:var(--surface)}
+
+main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px 0 40px}
+
+/* options */
+.opts{display:flex;flex-wrap:wrap;gap:10px}
+.seg{display:inline-flex;background:var(--surface);border-radius:11px;padding:3px}
+.seg button,.pill{padding:7px 13px;border-radius:8px;font-size:.88rem;color:var(--dim);font-weight:500;font-variant-numeric:tabular-nums}
+.seg button:hover,.pill:hover{color:var(--ink)}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.pill{border:1px solid var(--line);border-radius:11px;padding:8px 14px}
+.pill.on{border-color:var(--accent);color:var(--accent)}
+
+/* test */
+.hud{display:flex;align-items:baseline;gap:22px;margin:44px 0 14px;font-variant-numeric:tabular-nums}
+.timer{font-family:var(--serif);font-size:2.6rem;line-height:1;color:var(--accent);font-weight:600;min-width:2.6ch}
+.live{color:var(--dim);font-size:.95rem}
+.live b{color:var(--ink);font-weight:600}
+.view{
+  --fs:clamp(1.45rem,3.6vw,2.4rem);--lh:calc(var(--fs)*1.9);
+  position:relative;font-family:var(--serif);font-size:var(--fs);line-height:var(--lh);
+  height:calc(var(--lh)*3);overflow:hidden;cursor:text;user-select:none;-webkit-user-select:none;
+}
+.inner{position:relative;display:flex;flex-wrap:wrap;column-gap:.55em;align-content:flex-start;transition:transform .16s ease}
+.word{height:var(--lh);white-space:pre}
+.l{color:var(--dim)}
+.l.ok{color:var(--ink)}
+.l.bad{color:var(--err)}
+.l.extra{color:var(--err);opacity:.75}
+.word.wrong{text-decoration:underline;text-decoration-color:var(--err);text-decoration-thickness:2px;text-underline-offset:.28em}
+.caret{position:absolute;left:0;top:0;width:2px;height:calc(var(--fs)*1.3);margin-top:calc((var(--lh) - var(--fs)*1.3)/2);background:var(--accent);border-radius:2px;transition:transform .09s linear;pointer-events:none}
+.idle .caret{animation:blink 1.05s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.view.unfocused .inner{filter:blur(4px);opacity:.45}
+.focusmsg{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-family:var(--sans);font-size:1rem;color:var(--ink);font-weight:500}
+.view.unfocused .focusmsg{display:flex}
+#inp{position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;font-size:16px;border:0;padding:0}
+.hint{margin-top:22px;color:var(--dim);font-size:.85rem}
+kbd{font-family:inherit;background:var(--surface);border-radius:6px;padding:2px 7px;font-size:.8rem;color:var(--ink)}
+.hide{display:none!important}
+
+/* results */
+.hero{display:flex;gap:48px;align-items:flex-end;flex-wrap:wrap}
+.big{font-family:var(--serif);font-size:clamp(3.6rem,15vw,6rem);line-height:.95;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.big.accent{color:var(--accent)}
+.big small{font-family:var(--sans);font-size:1rem;font-weight:500;color:var(--dim);letter-spacing:0;margin-left:6px}
+.cap{color:var(--dim);font-size:.9rem;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.badge{background:var(--accent);color:var(--accent-ink);font-size:.75rem;font-weight:600;padding:2px 9px;border-radius:99px}
+svg.chart{width:100%;height:auto;display:block;margin:28px 0 8px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .lw{fill:none;stroke:var(--accent);stroke-width:2.6;stroke-linejoin:round;stroke-linecap:round}
+.chart .lr{fill:none;stroke:var(--dim);stroke-width:1.8;stroke-dasharray:4 4}
+.chart text{fill:var(--dim);font-family:var(--sans);font-size:11px}
+.legend{display:flex;gap:18px;font-size:.8rem;color:var(--dim)}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:7px;vertical-align:middle;background:var(--accent)}
+.legend i.r{background:var(--dim)}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:26px 0;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.facts dt{color:var(--dim);font-size:.82rem}
+.facts dd{margin:3px 0 0;font-size:1.35rem;font-weight:600;font-variant-numeric:tabular-nums}
+.facts dd small{font-size:.8rem;color:var(--dim);font-weight:500}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{background:var(--accent);color:var(--accent-ink);padding:12px 22px;border-radius:12px;font-weight:600}
+.btn.ghost{background:var(--surface);color:var(--ink)}
+.btn kbd{background:transparent;color:inherit;opacity:.7;padding:0 0 0 6px}
+.recent{margin-top:30px;font-size:.9rem}
+.recent h2{font-size:.9rem;font-weight:600;margin:0 0 4px}
+.recent div{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);color:var(--dim);font-variant-numeric:tabular-nums}
+.recent div:last-child{border-bottom:0}
+.recent b{color:var(--ink);font-weight:600}
+
+footer{display:flex;justify-content:space-between;align-items:center;color:var(--dim);font-size:.82rem;height:36px}
+footer button{color:var(--dim);font-size:.82rem}
+footer button:hover{color:var(--err)}
+
+/* splash */
+#splash{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;transition:opacity .45s ease,transform .45s ease}
+#splash.leave{opacity:0;transform:scale(1.03);pointer-events:none}
+.sp-logo{font-family:var(--serif);font-weight:700;font-size:clamp(3rem,13vw,5.5rem);letter-spacing:-.03em;line-height:1}
+.sp-logo i{font-style:normal;color:var(--accent)}
+.sp-type{margin:22px 0 30px;font-family:var(--serif);font-size:clamp(1.1rem,3.5vw,1.5rem);color:var(--dim);min-height:1.6em}
+.sp-caret{display:inline-block;width:2px;height:1.1em;background:var(--accent);margin-left:3px;vertical-align:-.15em;animation:blink 1.05s steps(1) infinite}
+.sp-bar{width:min(240px,60vw);height:3px;background:var(--surface);border-radius:3px;margin:0 auto 22px;overflow:hidden}
+.sp-bar i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left;animation:fill 1.7s cubic-bezier(.3,.6,.3,1) forwards}
+@keyframes fill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.sp-go{color:var(--dim);font-size:.92rem;opacity:.5;transition:opacity .3s,color .3s}
+.sp-go.ready{opacity:1;color:var(--ink)}
+/* home */
+.hl{font-family:var(--serif);font-size:clamp(2rem,6vw,3.2rem);margin:0 0 6px;letter-spacing:-.02em;line-height:1.1}
+.sub{color:var(--dim);margin:0 0 28px}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.mode{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:26px;display:flex;flex-direction:column;gap:14px;min-height:300px}
+.mode h2{font-family:var(--serif);font-size:1.8rem;margin:0}
+.mode p{margin:0;color:var(--dim);line-height:1.5}
+.mode .seg{background:var(--bg);align-self:flex-start}
+.mode .best{margin-top:auto;color:var(--dim);font-size:.88rem}
+.mode .best b{color:var(--ink)}
+.mode .btn{width:100%}
+.modeopts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:22px;color:var(--dim);font-size:.88rem}
+/* test bar */
+.tbar{display:flex;align-items:center;justify-content:space-between;color:var(--dim);font-size:.9rem}
+.back{display:inline-flex;align-items:center;gap:4px;color:var(--dim);padding:8px 10px 8px 4px;border-radius:10px}
+.back:hover{color:var(--ink)}
+.kgap{margin-left:14px}
+*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#inp{-webkit-user-select:text;user-select:text}
+header{position:relative}
+.navbar{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 0;padding:5px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.navbar button{flex:1;min-width:112px;padding:10px 13px;border-radius:10px;color:var(--dim);font-size:.9rem;font-weight:600;white-space:nowrap}
+.navbar button:hover{color:var(--ink)}
+.navbar button.active{background:var(--bg);color:var(--accent);box-shadow:0 1px 3px #00000012}
+.hdr-r{display:flex;gap:4px;align-items:center}
+.track-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+.track-stat{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.track-stat small{display:block;color:var(--dim);font-size:.8rem;margin-bottom:5px}
+.track-stat b{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.about-card{padding:22px;border:1px solid var(--line);background:var(--surface);border-radius:18px;margin-bottom:16px}
+.about-card h2{font-family:var(--serif);margin:0 0 10px;font-size:1.35rem}
+.about-card p{line-height:1.6;color:var(--dim);margin:8px 0}
+.about-card ul{padding-left:22px;color:var(--dim);line-height:1.65;margin:8px 0}
+.donate-link{display:inline-flex;margin-top:10px;padding:12px 17px;border-radius:12px;font-weight:800;text-decoration:none;color:#fff;background:linear-gradient(110deg,#d7193f,#fff 48%,#e32648 70%,#d7193f);background-size:220% 100%;animation:donateShine 2.2s linear infinite;box-shadow:0 0 18px #e3264844}
+@keyframes donateShine{from{background-position:100% 0}to{background-position:-120% 0}}
+.redeem-link{display:inline-flex;margin-top:10px;margin-left:8px;padding:12px 17px;border-radius:12px;font-weight:800;text-decoration:none;color:#062b2b;background:linear-gradient(110deg,#00d6b5,#d8fff8 46%,#13bfae 70%,#00a98f);background-size:220% 100%;animation:redeemShine 2s linear infinite;box-shadow:0 0 18px #00d6b544;border:0;cursor:pointer}
+@keyframes redeemShine{from{background-position:100% 0}to{background-position:-120% 0}}
+.redeem-panel{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
+.redeem-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.redeem-row input{flex:1;min-width:150px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;user-select:text;-webkit-user-select:text}.redeem-row button{padding:10px 14px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.redeem-status{min-height:1.4em;font-size:.9rem;margin-top:8px;color:var(--dim)}
+.contact-link{color:#438bff;font-weight:700;text-decoration:none;overflow-wrap:anywhere}.contact-link:hover{text-decoration:underline}
+@media(max-width:560px){.navbar button{flex:1 1 calc(50% - 6px)}.track-stats{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){.donate-link,.redeem-link{animation:none}}
+.dot{width:16px;height:16px;border-radius:50%;background:var(--accent);display:block}
+.accpop{position:absolute;right:0;top:48px;z-index:20;display:grid;grid-template-columns:repeat(6,32px);gap:8px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.sw{width:32px;height:32px;border-radius:50%;border:2px solid transparent}
+.sw.on{border-color:var(--ink)}
+#modeView,#optsView{width:100%}
+#modeView .back,#optsView .back{margin-bottom:14px}
+.modegrid,.incl{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.incl{margin-bottom:24px}
+.mcard,.tog{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+.mcard b,.tog b{font-family:var(--serif);font-size:1.3rem}
+.mcard span,.tog span{color:var(--dim);line-height:1.45;font-size:.92rem}
+.mcard:hover,.tog:hover{border-color:var(--accent)}
+.mcard.on,.tog.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+@media (max-width:700px){.modes,.modegrid,.incl{grid-template-columns:1fr}.mode{min-height:0}}
+@media (max-width:560px){
+  .hud{margin-top:30px}
+  .timer{font-size:2.2rem}
+  .facts{grid-template-columns:1fr 1fr}
+  .hero{gap:28px}
+}
+@media (prefers-reduced-motion:reduce){.inner,.caret{transition:none}.idle .caret{animation:none}}
+
+/* offline progression */
+.progress-card{margin:0 0 26px;padding:18px 20px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.progress-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.progress-rank{font-family:var(--serif);font-size:1.55rem;font-weight:700}
+.progress-exp{color:var(--dim);font-size:.9rem;font-variant-numeric:tabular-nums}
+.progress-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--dim);font-size:.86rem}
+@media(prefers-reduced-motion:reduce){.progress-fill{transition:none}}
+
+/* keyboard-aware typing area */
+body.kb-open{padding-bottom:calc(max(18px,env(safe-area-inset-bottom)) + var(--kb,0px))}
+body.kb-open main{justify-content:flex-start;padding-top:0}
+body.kb-open .hud{margin-top:14px}
+
+/* rank icons */
+.rank-wrap{display:flex;align-items:center;gap:14px}
+.ricon{--c:#7a93b0;--c2:#ffd23f;display:inline-grid;place-items:center;flex:none}
+.ricon svg{width:100%;height:100%;overflow:visible;fill:none;stroke:var(--c);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px var(--c))}
+.ricon .fillc{fill:var(--c);stroke:none}
+.ricon.big{width:62px;height:62px;border-radius:50%;background:var(--bg);border:1px solid var(--line);padding:9px}
+.ricon.sm{width:26px;height:26px;margin-right:8px;vertical-align:middle}
+.ricon.pop{animation:rPop .75s cubic-bezier(.3,1.6,.5,1)}
+@keyframes rPop{0%{transform:scale(.3) rotate(-120deg);opacity:0}100%{transform:none;opacity:1}}
+.ricon[data-rank=Whisper]{--c:#7a93b0}
+.ricon[data-rank=Breeze]{--c:#14b8a6}
+.ricon[data-rank=Zephyr]{--c:#65a30d}
+.ricon[data-rank=Gale]{--c:#f59e0b}
+.ricon[data-rank=Vortex]{--c:#a855f7}
+.ricon[data-rank=Hurricane]{--c:#ff4d6d}
+:root[data-theme=dark] .ricon[data-rank=Whisper]{--c:#a9bdd6}
+:root[data-theme=dark] .ricon[data-rank=Breeze]{--c:#2dd4bf}
+:root[data-theme=dark] .ricon[data-rank=Zephyr]{--c:#a3e635}
+:root[data-theme=dark] .ricon[data-rank=Gale]{--c:#fbbf24}
+:root[data-theme=dark] .ricon[data-rank=Vortex]{--c:#c084fc}
+:root[data-theme=dark] .ricon[data-rank=Hurricane]{--c:#ff6b85}
+/* Whisper: a thin wisp that draws itself, then fades, with drifting motes */
+.w-wisp{stroke-dasharray:100 100;animation:wWisp 4.2s ease-in-out infinite}
+.w-wisp.b{stroke-width:1.7;animation-delay:.7s}
+@keyframes wWisp{0%{stroke-dashoffset:100;opacity:0}35%{stroke-dashoffset:0;opacity:1}65%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:-100;opacity:0}}
+.w-mote{animation:wMote 3.4s ease-in-out infinite;opacity:0}
+.w-mote.b{animation-delay:1.5s}
+@keyframes wMote{0%{transform:translate(0,5px);opacity:0}50%{opacity:.9}100%{transform:translate(6px,-9px);opacity:0}}
+.ricon[data-rank=Whisper] svg{animation:wSway 4.2s ease-in-out infinite alternate}
+@keyframes wSway{from{transform:translateY(1.5px)}to{transform:translateY(-1.5px)}}
+/* Breeze: wavy air streams flowing sideways */
+.b-base{stroke-opacity:.22}
+.b-flow{stroke-dasharray:30 70;animation:bFlow 1.9s linear infinite}
+.b-flow.b2{animation-delay:-.65s}
+.b-flow.b3{animation-delay:-1.3s}
+@keyframes bFlow{from{stroke-dashoffset:30}to{stroke-dashoffset:-70}}
+/* Zephyr: a leaf riding the wind, bobbing and tumbling */
+.z-leaf{transform-box:view-box;transform-origin:24px 24px;animation:zLeaf 3s ease-in-out infinite alternate}
+.z-leaf .lf{fill:var(--c);fill-opacity:.22}
+@keyframes zLeaf{0%{transform:translate(-4px,3px) rotate(-16deg)}50%{transform:translate(1px,-3px) rotate(8deg)}100%{transform:translate(5px,-1px) rotate(18deg)}}
+.z-wind{stroke-dasharray:22 78;animation:bFlow 1.4s linear infinite}
+/* Gale: violent gust that shakes, with streaks and flying debris */
+.g-all{animation:gShake .32s linear infinite}
+@keyframes gShake{0%{transform:translate(0,0)}25%{transform:translate(1.3px,-.8px)}50%{transform:translate(-1px,.6px)}75%{transform:translate(1px,.9px)}100%{transform:translate(0,0)}}
+.g-streak{stroke-dasharray:20 80;animation:bFlow .6s linear infinite}
+.g-streak.b2{animation-duration:.45s;animation-delay:-.2s}
+.g-deb{animation:gDeb .8s linear infinite;opacity:0}
+.g-deb.b2{animation-delay:-.3s}
+.g-deb.b3{animation-delay:-.55s}
+@keyframes gDeb{0%{transform:translateX(-10px);opacity:0}20%{opacity:1}100%{transform:translateX(18px);opacity:0}}
+/* Vortex: twin spiral arms that spin with a breathing glow */
+.v-spin{transform-box:view-box;transform-origin:24px 24px;animation:vSpin 2.6s linear infinite}
+.v-core{transform-box:fill-box;transform-origin:center;animation:vCore 1.3s ease-in-out infinite alternate}
+@keyframes vSpin{to{transform:rotate(360deg)}}
+@keyframes vCore{from{transform:scale(.6)}to{transform:scale(1.5)}}
+.ricon[data-rank=Vortex] svg{animation:vGlow 1.3s ease-in-out infinite alternate}
+@keyframes vGlow{from{filter:drop-shadow(0 0 2px var(--c))}to{filter:drop-shadow(0 0 9px var(--c))}}
+/* Hurricane: fast cyclone, counter-rotating ring, pulsing eye, lightning strikes */
+.h-spin{transform-box:view-box;transform-origin:24px 24px;animation:vSpin 1s linear infinite}
+.h-ring{transform-box:view-box;transform-origin:24px 24px;stroke-width:1.6;stroke-dasharray:3 5;animation:hRing 5s linear infinite}
+@keyframes hRing{to{transform:rotate(-360deg)}}
+.h-eye{transform-box:fill-box;transform-origin:center;animation:vCore .6s ease-in-out infinite alternate}
+.h-bolt{fill:var(--c2);stroke:none;opacity:0;animation:hBolt 2.4s linear infinite;filter:drop-shadow(0 0 4px var(--c2))}
+@keyframes hBolt{0%,80%{opacity:0}82%{opacity:1}85%{opacity:.15}88%{opacity:1}93%,100%{opacity:0}}
+.ricon[data-rank=Hurricane] svg{animation:hGlow 2.4s linear infinite}
+@keyframes hGlow{0%,80%{filter:drop-shadow(0 0 3px var(--c))}82%{filter:drop-shadow(0 0 12px var(--c2))}85%{filter:drop-shadow(0 0 3px var(--c))}88%{filter:drop-shadow(0 0 14px var(--c2))}93%,100%{filter:drop-shadow(0 0 3px var(--c))}}
+@media(prefers-reduced-motion:reduce){.ricon,.ricon svg,.ricon svg *{animation:none!important}.w-mote,.h-bolt{opacity:0}}
+
+/* EXP card visuals */
+.progress-card{position:relative;border-color:color-mix(in srgb,var(--rc,#7667ff) 38%,var(--line))}
+.progress-card::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(120% 100% at 0% 0%,color-mix(in srgb,var(--rc,#7667ff) 20%,transparent),transparent 62%)}
+.progress-card>*{position:relative}
+.progress-card[data-rank=Whisper]{--rc:#7a93b0;--rc2:#b9cce2}
+.progress-card[data-rank=Breeze]{--rc:#14b8a6;--rc2:#5eead4}
+.progress-card[data-rank=Zephyr]{--rc:#65a30d;--rc2:#bef264}
+.progress-card[data-rank=Gale]{--rc:#f59e0b;--rc2:#fde047}
+.progress-card[data-rank=Vortex]{--rc:#a855f7;--rc2:#f0abfc}
+.progress-card[data-rank=Hurricane]{--rc:#ff4d6d;--rc2:#ffd23f}
+.progress-exp{position:relative;text-align:right}
+.progress-exp b{font-family:var(--serif);font-size:1.9rem;line-height:1;font-weight:700;background:linear-gradient(90deg,var(--rc,#7667ff),var(--rc2,#4ac7ff));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.exp-gain{position:absolute;right:0;top:-8px;font-weight:800;font-size:.95rem;color:var(--rc);opacity:0;pointer-events:none;text-shadow:0 0 10px color-mix(in srgb,var(--rc) 60%,transparent)}
+.exp-gain.go{animation:gainUp 1.9s ease-out}
+@keyframes gainUp{0%{opacity:0;transform:translateY(10px) scale(.7)}18%{opacity:1;transform:translateY(-4px) scale(1.2)}100%{opacity:0;transform:translateY(-30px) scale(1)}}
+.exp-barrow{display:flex;align-items:center;gap:12px;margin:14px 0 10px}
+.progress-track{flex:1;height:14px;border-radius:99px;background:var(--bg);overflow:hidden;position:relative;box-shadow:inset 0 1px 3px #0000002e,0 0 14px color-mix(in srgb,var(--rc,#7667ff) 32%,transparent)}
+.progress-fill{position:relative;height:100%;width:0;border-radius:99px;overflow:hidden;background:linear-gradient(90deg,var(--rc,#7667ff),var(--rc2,#4ac7ff));transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+.progress-fill::before{content:"";position:absolute;inset:0;background-image:linear-gradient(45deg,#ffffff38 25%,transparent 25%,transparent 50%,#ffffff38 50%,#ffffff38 75%,transparent 75%,transparent);background-size:28px 28px;animation:expStripes .9s linear infinite}
+.progress-fill::after{content:"";position:absolute;top:0;bottom:0;left:-45%;width:45%;background:linear-gradient(90deg,transparent,#ffffffa6,transparent);animation:expShine 2.8s ease-in-out infinite}
+@keyframes expStripes{to{background-position:28px 0}}
+@keyframes expShine{0%{left:-45%}55%,100%{left:110%}}
+.exp-pct{min-width:3.4ch;text-align:right;font-size:.85rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--rc,var(--accent))}
+.rank-ladder{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin:14px 0 6px}
+.rl{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 8px;border-radius:12px;border:1px solid transparent;background:var(--bg);text-align:center;min-width:0}
+.rl .ricon{width:32px;height:32px}
+.rl b{font-size:.74rem;font-weight:700}
+.rl small{font-size:.68rem;color:var(--dim);font-variant-numeric:tabular-nums}
+.rl.done{opacity:.85}
+.rl.lock{opacity:.4;filter:grayscale(1)}
+.rl.done .ricon svg,.rl.done .ricon svg *,.rl.lock .ricon svg,.rl.lock .ricon svg *{animation:none!important}
+.rl.cur{border-color:var(--rc);box-shadow:0 0 0 1px var(--rc),0 0 16px color-mix(in srgb,var(--rc) 40%,transparent)}
+@media(max-width:560px){.rank-ladder{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* streak fire: blue -> orange -> purple, looping */
+.streak-fire{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:1rem}
+.fire{width:24px;height:32px;overflow:visible;flex:none;animation:fireGlow 6s linear infinite}
+.fire stop{stop-color:#ff8a1f;animation:fireHue 6s linear infinite}
+.fire .fi{animation-name:fireHueIn}
+.fire .b{animation-delay:-1.5s}
+.fire .c{animation-delay:-3s}
+.fire-body{transform-box:fill-box;transform-origin:50% 100%;animation:fireFlick 1.15s ease-in-out infinite}
+.fire-in{transform-box:fill-box;transform-origin:50% 100%;animation:fireInner .75s ease-in-out infinite alternate}
+.fire-spark{animation:fireSpark 1.8s ease-out infinite,fireSparkHue 6s linear infinite;opacity:0}
+.fire-spark.s2{animation-delay:-.6s,0s}
+.fire-spark.s3{animation-delay:-1.2s,0s}
+#streakCount{background:linear-gradient(90deg,#3b82f6,#ff8a1f,#a855f7,#3b82f6,#ff8a1f,#a855f7,#3b82f6);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:fireText 6s linear infinite}
+@keyframes fireHue{0%,10%{stop-color:#2f6bff}33%,43%{stop-color:#ff8a1f}66%,76%{stop-color:#a53df2}100%{stop-color:#2f6bff}}
+@keyframes fireHueIn{0%,10%{stop-color:#bcd4ff}33%,43%{stop-color:#ffe28a}66%,76%{stop-color:#f0d2ff}100%{stop-color:#bcd4ff}}
+@keyframes fireGlow{0%,10%{filter:drop-shadow(0 0 6px #2f6bffcc)}33%,43%{filter:drop-shadow(0 0 8px #ff8a1fcc)}66%,76%{filter:drop-shadow(0 0 7px #a53df2cc)}100%{filter:drop-shadow(0 0 6px #2f6bffcc)}}
+@keyframes fireFlick{0%,100%{transform:scale(1,1) skewX(0)}20%{transform:scale(.95,1.06) skewX(-3deg)}40%{transform:scale(1.04,.96) skewX(2.5deg)}60%{transform:scale(.97,1.08) skewX(-2deg)}80%{transform:scale(1.03,.98) skewX(2deg)}}
+@keyframes fireInner{from{transform:scale(.88,.94) translateY(1px)}to{transform:scale(1.06,1.1) translateY(-1px)}}
+@keyframes fireSpark{0%{transform:translate(0,0) scale(1);opacity:0}15%{opacity:1}100%{transform:translate(var(--dx,3px),-24px) scale(.2);opacity:0}}
+@keyframes fireSparkHue{0%,10%{fill:#7fb0ff}33%,43%{fill:#ffc04a}66%,76%{fill:#d59bff}100%{fill:#7fb0ff}}
+@keyframes fireText{to{background-position:100% 0}}
+@media(prefers-reduced-motion:reduce){.fire,.fire *,.progress-fill::before,.progress-fill::after,#streakCount,.exp-gain{animation:none!important}}
+
+/* website button: chrome finish */
+.website-link{display:inline-flex;margin-top:10px;margin-left:8px;padding:12px 17px;border-radius:12px;font-weight:800;text-decoration:none;color:#1b2127;background:linear-gradient(110deg,#7d848b,#f7f9fb 26%,#bfc5cb 44%,#ffffff 58%,#8a9096 78%,#d5dade);background-size:220% 100%;animation:websiteShine 2.2s linear infinite;box-shadow:0 0 18px #c3c9d055,inset 0 1px 0 #ffffffcc,inset 0 -1px 0 #00000026;text-shadow:0 1px 0 #ffffff99}
+@keyframes websiteShine{from{background-position:100% 0}to{background-position:-120% 0}}
+@media(prefers-reduced-motion:reduce){.website-link{animation:none}}
+
+/* test certificate */
+.cert-stage{position:relative;margin:18px 0 16px;border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 18px 50px #0000003a,0 0 0 1px var(--line)}
+.cert-stage canvas{display:block;width:100%;height:auto}
+.cert-stage.metal::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 42%,#ffffff59 50%,transparent 58%);background-size:260% 100%;animation:certShine 4.8s ease-in-out infinite}
+@keyframes certShine{from{background-position:130% 0}to{background-position:-30% 0}}
+.cert-ctrl{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:flex-end;margin:0 0 4px}
+.cert-field{display:flex;flex-direction:column;gap:6px;font-size:.78rem;color:var(--dim);font-weight:600;letter-spacing:.04em}
+.cert-name{flex:1 1 280px}.cert-name label span{font-weight:500;letter-spacing:0}.cert-name input{width:100%;min-width:0!important;font-size:1rem!important;padding:11px 14px!important}.cert-field input.empty{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.cert-field input{min-width:220px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;font-size:.92rem;font-weight:500;letter-spacing:0;user-select:text;-webkit-user-select:text}
+.cert-field .seg button{padding:6px 12px;font-size:.82rem}
+.seg button[data-plate]::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:-1px;background:var(--accent);box-shadow:0 0 0 1px #00000033}
+.seg button[data-plate=silver]::before{background:linear-gradient(135deg,#7c838a,#fff 45%,#9aa2aa)}
+.seg button[data-plate=gold]::before{background:linear-gradient(135deg,#8a6014,#ffe9a0 45%,#c8962c)}
+@media(prefers-reduced-motion:reduce){.cert-stage.metal::after{animation:none;opacity:0}}
+
+/* reward panel */
+.progress-message{margin-top:14px;padding:13px 14px 12px;border-radius:16px;background:var(--bg);border:1px solid color-mix(in srgb,var(--rc,var(--accent)) 28%,var(--line));display:flex;flex-direction:column;gap:10px;font-size:.88rem;color:var(--ink)}
+.rw-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rw-label{font-size:.72rem;font-weight:700;letter-spacing:.09em;color:var(--dim)}
+.rw-total{font-weight:800;font-size:.95rem;font-variant-numeric:tabular-nums;color:var(--rc,var(--accent))}
+.rw-chips{display:flex;flex-wrap:wrap;gap:8px}
+.rw-chip{--c:var(--accent);display:inline-flex;align-items:center;gap:10px;padding:7px 14px 7px 8px;border-radius:14px;background:var(--surface);border:1px solid color-mix(in srgb,var(--c) 30%,var(--line))}
+.rw-ico{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 18%,transparent)}
+.rw-txt{display:flex;flex-direction:column;line-height:1.15}
+.rw-txt b{font-size:.98rem;font-weight:800;font-variant-numeric:tabular-nums}
+.rw-txt small{font-size:.72rem;color:var(--dim)}
+.rw-chip.muted{opacity:.8}
+.rw-hint{display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--dim);padding-top:9px;border-top:1px dashed var(--line)}
+.rw-hint svg{color:#ff8a1f;flex:none}
+.progress-message.fresh .rw-chip{animation:rwPop .65s cubic-bezier(.3,1.5,.5,1) both}
+.progress-message.fresh .rw-chip:nth-child(2){animation-delay:.12s}
+.progress-message.fresh .rw-total{animation:rwTotal .9s ease-out both}
+@keyframes rwPop{0%{transform:translateY(8px) scale(.85);opacity:0}100%{transform:none;opacity:1}}
+@keyframes rwTotal{0%{transform:scale(1.5);opacity:0}100%{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.progress-message.fresh .rw-chip,.progress-message.fresh .rw-total{animation:none!important}}
+
+
+/* Type Token economy, quests and boost shop */
+.token-strip{display:flex;align-items:center;gap:11px;margin-top:18px;padding:12px 14px;border-radius:14px;background:var(--bg);border:1px solid color-mix(in srgb,#00bfa6 35%,var(--line))}
+.type-token-logo{width:42px;height:42px;display:grid;place-items:center;flex:none;border-radius:13px;background:linear-gradient(145deg,#082f49,#087f8c 58%,#20d6b5);box-shadow:0 0 18px #00d6b533,inset 0 1px #ffffff55}
+.type-token-logo svg{width:29px;height:29px;fill:none;stroke:#d9fff7;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px #66ffe4)}
+.token-strip small,.shop-balance small{display:block;color:var(--dim);font-size:.7rem;font-weight:800;letter-spacing:.1em}.token-strip b,.shop-balance b{display:block;font-size:1.25rem;font-weight:850;color:#12bfa8;font-variant-numeric:tabular-nums}.boost-status{margin-left:auto;text-align:right;color:var(--dim);font-size:.8rem;max-width:45%}
+.quest-icon svg,.boost-symbol svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.boost-card .boost-symbol{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;background:color-mix(in srgb,#f59e0b 16%,transparent)}.boost-card .boost-symbol svg{filter:drop-shadow(0 0 3px #f59e0b88)}.tok-mini{display:inline-block;width:17px;height:17px;vertical-align:-3px;margin-right:5px;fill:none;stroke:#12bfa8;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}.quest-tabs{margin-bottom:18px;display:inline-flex}.quest-list{display:grid;gap:12px}.quest-card,.boost-card{padding:18px;border:1px solid var(--line);background:var(--surface);border-radius:16px;display:flex;gap:14px;align-items:center}.quest-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:13px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);font-size:1.35rem;flex:none}.quest-copy{flex:1;min-width:0}.quest-copy b{display:block;font-size:1rem}.quest-copy p{margin:5px 0;color:var(--dim);font-size:.86rem;line-height:1.4}.quest-reward{font-size:.8rem;color:#0cae9b;font-weight:800}.quest-progress{height:6px;border-radius:99px;background:var(--bg);overflow:hidden;margin-top:9px}.quest-progress i{display:block;height:100%;background:linear-gradient(90deg,#087f8c,#25e0b8);border-radius:99px}.quest-claim{padding:10px 13px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:750;white-space:nowrap}.quest-claim:disabled{opacity:.45;cursor:default}.shop-balance{display:flex;align-items:center;gap:12px;padding:16px;border:1px solid #00bfa655;border-radius:16px;margin-bottom:18px;background:linear-gradient(120deg,color-mix(in srgb,#00bfa6 10%,var(--surface)),var(--surface))}.shop-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.boost-card{align-items:flex-start;flex-direction:column;min-width:0}.boost-card .boost-symbol{font-size:1.8rem;color:#f59e0b}.boost-card h2{margin:0;font-family:var(--serif);font-size:1.35rem}.boost-card p{margin:0;color:var(--dim);font-size:.88rem}.boost-card .btn{width:100%;margin-top:auto}.boost-cost{font-weight:850;color:#0cae9b}.shop-note{min-height:1.5em;color:var(--dim);font-size:.9rem}.result-extra{margin:12px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--surface);display:flex;gap:20px;flex-wrap:wrap}.result-extra b{display:block;font-size:1.1rem}.result-extra small{color:var(--dim)}
+@media(max-width:560px){.shop-grid{grid-template-columns:1fr}.quest-card{align-items:flex-start;flex-wrap:wrap}.quest-claim{margin-left:58px}.boost-status{font-size:.72rem}}
+
+
+/* Betterment analysis */
+.betterment-card{margin-top:24px;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--surface);position:relative;overflow:hidden}
+.betterment-card h2{font-family:var(--serif);font-size:1.65rem;margin:0 0 7px}
+.betterment-card .ba-sub{color:var(--dim);margin:0 0 18px;line-height:1.5}
+.ba-lock{padding:18px;border:1px dashed var(--line);border-radius:14px;background:var(--bg)}
+.ba-lock strong{display:block;font-size:1.05rem;margin-bottom:6px}
+.ba-progress{height:8px;background:var(--surface);border-radius:99px;overflow:hidden;margin:13px 0 7px}
+.ba-progress i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .4s ease}
+.ba-meta{font-size:.82rem;color:var(--dim)}
+.ba-status{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 18px}
+.ba-verdict{font-family:var(--serif);font-size:1.7rem;font-weight:750}
+.ba-verdict.improving{color:#16a34a}.ba-verdict.declining{color:var(--err)}.ba-verdict.steady{color:var(--accent)}
+.ba-change{font-size:.95rem;color:var(--dim)}
+.ba-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ba-metric{padding:13px;border-radius:12px;background:var(--bg);min-width:0}
+.ba-metric small{display:block;color:var(--dim);font-size:.78rem;margin-bottom:5px}
+.ba-metric b{font-size:1.25rem;font-variant-numeric:tabular-nums}
+.ba-chart{width:100%;height:auto;display:block;margin:20px 0 8px}
+.ba-note{font-size:.82rem;color:var(--dim);line-height:1.5;margin:10px 0 0}
+@media(max-width:560px){.ba-metrics{grid-template-columns:1fr 1fr}.ba-metric:last-child{grid-column:1/-1}}
+
+</style>
+</head>
+<body>
+<div id="splash" role="dialog" aria-label="Welcome to Keystroke">
+  <div>
+    <div class="sp-logo">key<i>stroke</i></div>
+    <div class="sp-type" aria-hidden="true"><span id="spTxt"></span><b class="sp-caret"></b></div>
+    <div class="sp-bar"><i></i></div>
+    <button class="sp-go" id="spGo" tabindex="-1">Loading</button>
+  </div>
+</div>
+<div class="app">
+  <header>
+    <div class="logo">key<i>stroke</i></div>
+    <div class="hdr-r"><div class="hdr-control"><button class="theme" id="accBtn" aria-label="Accent color" title="Accent color"><span class="dot"></span></button><span class="hdr-label">COLOUR</span></div><div class="hdr-control"><button class="theme" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button><span class="hdr-label">THEME</span></div><div class="accpop hide" id="accPop"></div></div>
+  </header>
+  <nav class="navbar" aria-label="Main sections">
+    <button data-nav="home" class="active">Dashboard &amp; Tracking</button>
+    <button data-nav="timedTests">Timed Tests</button>
+    <button data-nav="wordTests">Word Tests</button>
+    <button data-nav="quests">Quests</button>
+    <button data-nav="shop">Shop</button>
+    <button data-nav="about">About</button>
+  </nav>
+
+  <main>
+    <section class="hide" id="home">
+      <h1 class="hl">Dashboard &amp; Tracking</h1>
+      <p class="sub">Your typing progress, rank, EXP, and daily streak — saved on this device.</p>
+      <section class="progress-card" aria-label="Offline progress">
+        <div class="progress-top"><div class="rank-wrap"><span class="ricon big" id="rankIcon" aria-hidden="true"></span><div><div class="cap">YOUR RANK</div><div class="progress-rank" id="rankName">Whisper</div></div></div><div class="progress-exp"><b id="totalExp">0</b> EXP<span class="exp-gain" id="expGain" aria-hidden="true"></span></div></div>
+        <div class="exp-barrow"><div class="progress-track"><div class="progress-fill" id="rankFill"></div></div><b class="exp-pct" id="rankPct">0%</b></div>
+        <div class="token-strip"><span class="type-token-logo" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M20 2 35 11v18L20 38 5 29V11Z"/><path d="M13 12h14M13 20h14M13 28h8"/><path d="m23 24 4 4-4 4"/></svg></span><span><small>TYPE TOKENS</small><b id="typeTokens">0</b></span><span class="boost-status" id="boostStatus">No EXP boost active</span></div>
+        <div class="progress-bottom"><span id="rankNext">200 EXP to Breeze</span><span class="streak-fire"><svg class="fire" viewBox="0 0 48 64" aria-hidden="true" focusable="false"><defs><linearGradient id="fireG" x1="0" y1="1" x2="0" y2="0"><stop class="a" offset="0" stop-color="#ff8a1f"/><stop class="b" offset=".55" stop-color="#ff8a1f"/><stop class="c" offset="1" stop-color="#ff8a1f"/></linearGradient><linearGradient id="fireI" x1="0" y1="1" x2="0" y2="0"><stop class="fi a" offset="0" stop-color="#ffe28a"/><stop class="fi b" offset=".6" stop-color="#ffe28a"/><stop class="fi c" offset="1" stop-color="#ffe28a"/></linearGradient></defs><g class="fire-body"><path fill="url(#fireG)" d="M24 2C27 12 41 19 41 40C41 53 33 62 24 62C15 62 7 53 7 40C7 31 11 25 15 21C15 27 18 30 21 30C19 20 20 9 24 2Z"/><path class="fire-in" fill="url(#fireI)" d="M24 30C26 36 33 40 33 48C33 55 29 60 24 60C19 60 15 55 15 48C15 44 18 40 20 37C21 41 22 42 24 42C23 37 23 33 24 30Z"/></g><circle class="fire-spark s1" cx="18" cy="36" r="2" style="--dx:-4px"/><circle class="fire-spark s2" cx="30" cy="34" r="1.7" style="--dx:5px"/><circle class="fire-spark s3" cx="24" cy="28" r="1.5" style="--dx:1px"/></svg><span id="streakCount">0 day streak</span></span></div>
+        <div class="rank-ladder" id="rankLadder" aria-label="All ranks"></div>
+        <div class="progress-message" id="progressMessage"></div>
+      </section>
+      <div class="track-stats" aria-label="Typing statistics">
+        <div class="track-stat"><small>Tests completed</small><b id="dashTests">0</b></div>
+        <div class="track-stat"><small>Best speed</small><b id="dashBest">—</b></div>
+        <div class="track-stat"><small>Saved runs</small><b id="dashRuns">0</b></div>
+      </div>
+      <p class="sub" style="margin:20px 0 0">Choose <b>Timed Tests</b> to race the clock or <b>Word Tests</b> to complete a set number of words.</p>
+      <section class="betterment-card" id="bettermentAnalysis" aria-labelledby="bettermentTitle">
+        <h2 id="bettermentTitle">BETTERMENT ANALYSIS</h2>
+        <p class="ba-sub">See how your typing speed is changing across completed tests.</p>
+        <div id="baContent"></div>
+      </section>
+    </section>
+
+    <section class="hide" id="timedTests">
+      <h1 class="hl">Timed Tests</h1>
+      <p class="sub">Type as many words as you can before the clock runs out.</p>
+      <div class="about-card"><h2>Choose duration</h2><div class="seg" data-chips="time" role="group" aria-label="Test duration"></div><p data-best="time">No best yet</p><button class="btn" data-start="time">Start timed test</button></div>
+    </section>
+
+    <section class="hide" id="wordTests">
+      <h1 class="hl">Word Tests</h1>
+      <p class="sub">Type a fixed number of words as accurately and quickly as you can.</p>
+      <div class="about-card"><h2>Choose word count</h2><div class="seg" data-chips="words" role="group" aria-label="Word count"></div><p data-best="words">No best yet</p><button class="btn" data-start="words">Start word test</button></div>
+    </section>
+
+    <section class="hide" id="quests">
+      <h1 class="hl">Quests</h1><p class="sub">Complete typing challenges to earn EXP and bonus Type Tokens.</p>
+      <div class="quest-tabs seg" role="group" aria-label="Quest period"><button class="on" data-qperiod="daily">Daily</button><button data-qperiod="weekly">Weekly</button><button data-qperiod="monthly">Monthly</button></div>
+      <div id="questList" class="quest-list"></div>
+    </section>
+    <section class="hide" id="shop">
+      <h1 class="hl">Type Token Shop</h1><p class="sub">Spend Type Tokens on temporary EXP boosts. Your balance is saved on this device.</p>
+      <div class="shop-balance"><span class="type-token-logo" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M20 2 35 11v18L20 38 5 29V11Z"/><path d="M13 12h14M13 20h14M13 28h8"/><path d="m23 24 4 4-4 4"/></svg></span><div><small>YOUR BALANCE</small><b id="shopTokens">0 Type Tokens</b></div></div>
+      <div class="shop-grid" id="boostShop"></div><p class="shop-note" id="shopStatus" role="status"></p>
+    </section>
+    <section class="hide" id="about">
+      <h1 class="hl">About Keystroke</h1>
+      <p class="sub">A typing test app made by an independent developer.</p>
+      <div class="about-card">
+        <h2>Hi, I'm Jayas!</h2>
+        <p>HI, I AM JAYAS, THE SOLO DEVELOPER OF THIS APP</p>
+        <p>Please show your support by donating me on itch.io.</p>
+        <a class="donate-link" href="https://jayasx.itch.io/keystroke" target="_blank" rel="noopener noreferrer">Support Jayas on itch.io ↗</a>
+        <a class="website-link" href="https://jayas-dev.github.io/KeyStroke/" target="_blank" rel="noopener noreferrer">Website ↗</a>
+        <button type="button" class="redeem-link" id="redeemToggle" aria-expanded="false" aria-controls="redeemPanel">Redeem Codes</button>
+        <div class="redeem-panel hide" id="redeemPanel">
+          <label for="redeemInput"><b>Enter your code</b></label>
+          <div class="redeem-row"><input id="redeemInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Enter code"><button type="button" id="redeemSubmit">Redeem</button></div>
+          <div class="redeem-status" id="redeemStatus" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+      <div class="about-card">
+        <h2>How the rank system works</h2>
+        <p>Your rank is based on your lifetime EXP total. Earn EXP from completed tests to progress through these ranks:</p>
+        <ul><li><span class="ricon sm" data-rank="Whisper" aria-hidden="true"></span><b>Whisper:</b> 0–199 EXP</li><li><span class="ricon sm" data-rank="Breeze" aria-hidden="true"></span><b>Breeze:</b> 200–699 EXP</li><li><span class="ricon sm" data-rank="Zephyr" aria-hidden="true"></span><b>Zephyr:</b> 700–1,499 EXP</li><li><span class="ricon sm" data-rank="Gale" aria-hidden="true"></span><b>Gale:</b> 1,500–2,999 EXP</li><li><span class="ricon sm" data-rank="Vortex" aria-hidden="true"></span><b>Vortex:</b> 3,000–9,999 EXP</li><li><span class="ricon sm" data-rank="Hurricane" aria-hidden="true"></span><b>Hurricane:</b> 10,000+ EXP</li></ul>
+      </div>
+      <div class="about-card">
+        <h2>How the EXP system works</h2>
+        <p>Every completed test awards EXP. The reward is calculated using your typing speed, accuracy, and test length, so longer tests and stronger performance can earn more EXP. Progress is stored locally in this browser and works offline.</p>
+      </div>
+      <div class="about-card">
+        <h2>How the streak system works</h2>
+        <p>Complete at least one test each day to maintain your streak. The streak increases on consecutive days. Missing a full day resets it to Day 1 on your next completed test, and the streak EXP reward returns to its starting amount. The daily streak bonus is awarded only once per day.</p>
+      </div>
+      <div class="about-card">
+        <h2>Contact me</h2>
+        <p>CONTACT ME ON: <a class="contact-link" href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=Dkverma94712%40gmail.com" target="_blank" rel="noopener noreferrer">Dkverma94712@gmail.com</a></p>
+      </div>
+    </section>
+    <section class="hide" id="modeView">
+      <button class="back" id="modeBack"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
+      <h1 class="hl">Select mode</h1>
+      <p class="sub" id="modeSub"></p>
+      <div class="modegrid" id="modeGrid"></div>
+    </section>
+
+    <section class="hide" id="optsView">
+      <button class="back" id="optsBack"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Back</button>
+      <h1 class="hl">Optional extras</h1>
+      <p class="sub" id="optsSub"></p>
+      <div class="incl">
+        <button class="tog" id="tNum" data-toggle="numbers" aria-pressed="false"><b>Numbers</b><span>Mix digits in with the words.</span></button>
+        <button class="tog" id="tPunct" data-toggle="punct" aria-pressed="false"><b>Punctuation</b><span>Keep capitals, commas, and full stops.</span></button>
+      </div>
+      <button class="btn" id="beginBtn">Begin<kbd>Enter</kbd></button>
+    </section>
+
+    <section class="hide" id="testView">
+      <div class="tbar">
+        <button class="back" id="backBtn" aria-label="Back to menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Menu</button>
+        <span id="tMode"></span>
+      </div>
+
+      <div class="hud">
+        <div class="timer" id="sMain">30</div>
+        <div class="live"><b id="sWpm">–</b> wpm</div>
+        <div class="live"><b id="sAcc">100</b>% accuracy</div>
+      </div>
+
+      <div class="view idle unfocused" id="view">
+        <div class="inner" id="inner"><div class="caret" id="caret"></div></div>
+        <div class="focusmsg">Click or tap here to start typing</div>
+      </div>
+      <input id="inp" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Type the words shown" />
+      <div class="hint"><kbd>Tab</kbd> new words<span class="kgap"></span><kbd>Esc</kbd> menu</div>
+    </section>
+
+    <section class="hide" id="results" aria-live="polite">
+      <div class="hero">
+        <div>
+          <div class="cap">Speed <span class="badge hide" id="newBest">New best</span></div>
+          <div class="big accent"><span id="rWpm">0</span><small>wpm</small></div>
+        </div>
+        <div>
+          <div class="cap">Accuracy</div>
+          <div class="big"><span id="rAcc">0</span><small>%</small></div>
+        </div>
+      </div>
+      <svg class="chart" id="chart" viewBox="0 0 640 200" role="img" aria-label="Words per minute over time"></svg>
+      <div class="legend"><span><i></i>Net wpm</span><span><i class="r"></i>Raw wpm</span></div>
+      <dl class="facts">
+        <div><dt>Test</dt><dd id="rMode">–</dd></div>
+        <div><dt>Raw speed</dt><dd id="rRaw">0</dd></div>
+        <div><dt>Right / wrong keys</dt><dd id="rChars">0</dd></div>
+        <div><dt>Consistency</dt><dd id="rCons">–</dd></div>
+      </dl>
+      <div class="result-extra"><div><small>Time spent typing</small><b id="rTimeSpent">—</b></div><div><small>Words typed</small><b id="rWordsTyped">—</b></div><div><small>Type Tokens earned</small><b id="rTokensEarned">—</b></div></div>
+      <div class="actions">
+        <button class="btn" id="nextBtn">New words<kbd>Enter</kbd></button>
+        <button class="btn ghost" id="retryBtn">Retry these words</button>
+        <button class="btn ghost" id="certBtn">Certificate</button>
+        <button class="btn ghost" id="menuBtn">Menu<kbd>Esc</kbd></button>
+      </div>
+      <div class="recent"><h2>Recent runs</h2><div id="recentList"></div></div>
+    </section>
+    <section class="hide" id="certView">
+      <button class="back" id="certBack"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>Back to results</button>
+      <h1 class="hl">Test certificate</h1>
+      <p class="sub">Type your name, pick a plating, then save or share it.</p>
+      <div class="cert-ctrl">
+        <div class="cert-field cert-name"><label for="certName">Your name <span>(printed on the certificate)</span></label><input id="certName" type="text" maxlength="40" placeholder="Type your name here" autocomplete="off" spellcheck="false"></div>
+        <div class="cert-field"><span>Certificate plating</span><div class="seg" id="platingSeg" role="group" aria-label="Certificate plating"><button data-plate="normal">Normal</button><button data-plate="silver">Silver</button><button data-plate="gold">Gold</button></div></div>
+      </div>
+      <div class="cert-stage" id="certStage"><canvas id="certCanvas" width="2400" height="1695" role="img" aria-label="Typing test certificate preview"></canvas></div>
+      <div class="actions"><button class="btn" id="certPng">Download PNG</button><button class="btn ghost" id="certPdf">Download PDF</button><button class="btn ghost hide" id="certShare">Share</button></div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="best">No best yet</span>
+    <button id="resetBtn">Clear history</button>
+  </footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const STORE = 'keystroke:v1';
+let db = { progress: { exp: 0, streak: 0, lastDay: '', lastRewardDay: '', tests: 0, tokens: 0 }, settings: { type: 'time', n: 30, tn: 30, wn: 25, mode: 'normal', accent: 0, punct: false, numbers: false, theme: null }, best: {}, runs: [] };
+try {
+  const raw = localStorage.getItem(STORE);
+  if (raw) { const o = JSON.parse(raw); db = { ...db, ...o, progress: { exp: 0, streak: 0, lastDay: '', lastRewardDay: '', tests: 0, tokens: 0, ...(o.progress || {}) }, settings: { ...db.settings, ...(o.settings || {}) } }; }
+} catch (e) {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(db)); } catch (e) {} };
+
+/* ---------- offline code redemption ---------- */
+const REDEEM_REWARDS = { 'TYPEITUP': 50, 'ITCHDONATE': 40, 'FINALIZED': 80 };
+function redeemCode() {
+  const input = $('#redeemInput');
+  const status = $('#redeemStatus');
+  const code = input.value.trim().toUpperCase();
+  if (!code) { status.textContent = 'Enter a code first.'; return; }
+  const reward = REDEEM_REWARDS[code];
+  if (!reward) { status.textContent = 'That code is not valid.'; return; }
+  const progress = db.progress;
+  progress.redeemedCodes = Array.isArray(progress.redeemedCodes) ? progress.redeemedCodes : [];
+  if (progress.redeemedCodes.includes(code)) { status.textContent = 'This code has already been redeemed on this device.'; return; }
+  progress.redeemedCodes.push(code);
+  progress.exp = Math.max(0, Number(progress.exp) || 0) + reward;
+  progress.lastMessage = `Code redeemed: +${reward} EXP.`;
+  progress.lastGain = { kind: 'code', amount: reward };
+  save(); renderProgress();
+  status.textContent = `Success! +${reward} EXP added.`;
+  input.value = '';
+}
+$('#redeemToggle').addEventListener('click', () => {
+  const panel = $('#redeemPanel');
+  const opening = panel.classList.contains('hide');
+  panel.classList.toggle('hide', !opening);
+  $('#redeemToggle').setAttribute('aria-expanded', String(opening));
+  if (opening) $('#redeemInput').focus();
+});
+$('#redeemSubmit').addEventListener('click', redeemCode);
+$('#redeemInput').addEventListener('keydown', e => { if (e.key === 'Enter') redeemCode(); });
+
+/* ---------- theme ---------- */
+const ACCENTS = [['Blue','#2f5bff','#7d98ff'],['Violet','#7c3aed','#a78bfa'],['Pink','#db2777','#f472b6'],['Red','#dc2626','#f87171'],['Orange','#c2410c','#fb923c'],['Amber','#b45309','#fbbf24'],['Lime','#4d7c0f','#a3e635'],['Green','#15803d','#4ade80'],['Teal','#0f766e','#2dd4bf'],['Cyan','#0e7490','#22d3ee'],['Indigo','#4338ca','#818cf8'],['Slate','#475569','#cbd5e1']];
+function paintSw() {
+  const pop = $('#accPop'), dk = document.documentElement.dataset.theme === 'dark';
+  if (!pop.children.length) pop.innerHTML = ACCENTS.map((a, i) => `<button class="sw" data-i="${i}" title="${a[0]}" aria-label="${a[0]}"></button>`).join('');
+  pop.querySelectorAll('.sw').forEach((b, i) => { b.style.background = ACCENTS[i][dk ? 2 : 1]; b.classList.toggle('on', i === (db.settings.accent || 0)); });
+}
+function applyTheme() {
+  const t = db.settings.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = t;
+  const a = ACCENTS[db.settings.accent] || ACCENTS[0], r = document.documentElement.style;
+  r.setProperty('--accent', a[t === 'dark' ? 2 : 1]);
+  r.setProperty('--accent-ink', t === 'dark' ? '#0e131b' : '#fff');
+  paintSw();
+}
+$('#accBtn').onclick = () => $('#accPop').classList.toggle('hide');
+$('#accPop').addEventListener('click', e => { const b = e.target.closest('.sw'); if (b) { db.settings.accent = +b.dataset.i; applyTheme(); save(); } });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('#accPop,#accBtn')) $('#accPop').classList.add('hide'); });
+$('#themeBtn').onclick = () => {
+  db.settings.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(); save();
+};
+applyTheme();
+
+/* ---------- words ---------- */
+const POOL = [...new Set(("the be of and a to in he have it that for they with as not on she at by this we you do but from or which one would all will there say who make when can more if no man out other so what time up go about than into could state only new year some take come these know see use get like then first any work now may such give over think most even find day also after way many must look before great back through long where much should well people down own just because good each those feel seem how high too place little world very still nation hand old life tell write become here show house both between need mean call develop under last right move thing general school never same another begin while number part turn real leave might want point form off child few small since against ask late home interest large person end open public follow during present without again hold govern around possible head consider word program problem however lead system set order eye plan run keep face fact group play stand increase early course change help line quick brown river light stone window garden silver paper music engine bridge forest morning winter coffee travel simple pocket orange planet rhythm shadow thunder mirror ladder whisper candle market anchor castle breeze copper dragon island jungle kitten lemon meadow needle ocean pepper quiet rabbit sunset tunnel velvet wander yellow zipper above across actor adult agree album alert alive amount ancient angle animal answer apple april arrow artist attack aunt autumn avenue awake badge bakery balance banner barrel basket battery beach beauty bedroom belong bench bicycle birthday blanket blossom border borrow bottle bottom branch bright broken bucket budget butter button cabin cabinet camera canvas captain carpet carry cattle ceiling cellar century chapter charge cheese cherry chimney circle citizen classic clever climate clock cloth cloud collar column comfort compass concert connect contain copy corner cottage cotton country courage cousin crayon cream crowd crystal curious current curtain cycle daily danger dawn decide deliver desert design detail dinner direct doctor dolphin double dream drift drum eager eagle earth echo editor effort elbow elder empty energy enjoy entire envelope escape evening exact example exchange explore fabric factory family famous farmer father feather fence fiddle field figure finger finish flame flavor flight floor flower fluffy folder forget fountain freedom friend frozen fruit future gadget gallery garlic gather gentle giant ginger glass globe glove golden grain grape grass gravel guide guitar hammer harbor harvest hazel health heart heavy helmet hidden hill history holiday honest honey horizon hospital hunter hurry iceberg idea image impact inch insect inside invite iron jacket jelly jewel journey joyful judge juice jumper kettle kingdom kitchen kite knife knock lamp lantern laugh lawn layer leader leaf legend lesson letter liberty limit liquid listen lizard locket lonely lucky lumber lunch magic magnet mango marble marsh master matter mayor melody member memory metal middle mild million mineral minute mixture modern moment monkey mother motion mountain muffin mystery napkin narrow nature nephew nickel noble north notice novel nurse oasis offer office olive onion option orbit orchard organ outside oven owner oyster paddle painter palace panel parade parent parrot passage pasture patch pattern pause peace peach pebble pencil penguin perfect picnic pillow pilot pirate plastic pledge plenty plume poet polite pond poster powder prayer pretty prince prize puddle puzzle pyramid quarter queen quest quilt radio railway rainbow random reason record remote repair report rescue reward ribbon ridge rocket roof rooster rough saddle safety sailor salad sample sandwich satin scarf scene science scissors season second secret seed senior shelf shine shiver shore signal silent singer sister skate sketch slender slope smooth snack soccer social soldier solid sparrow speech spider spirit splash spoon spring square squirrel stable stairs station steady stream street stripe student sudden summer supper surface swallow sweater swing symbol table tablet tailor talent teacher temple tennis theory thimble thread ticket timber toast today tomato tower trade trail treasure triangle trophy trumpet turtle twelve umbrella uncle unique valley value vanilla vendor village violin visit voice volcano voyage wagon walnut warm water weather weekend whale wheat wheel whistle wide willow wisdom wizard wonder wooden worker wrist yard yogurt young zebra").split(' '))];
+
+function randomWords(n) {
+  const out = [];
+  let startSentence = true;
+  for (let i = 0; i < n; i++) {
+    let w;
+    if (db.settings.numbers && Math.random() < 0.12) {
+      w = String(Math.floor(Math.random() * (Math.random() < 0.5 ? 100 : 10000)));
+    } else {
+      const last = (out[out.length - 1] || '').replace(/\W/g, '').toLowerCase();
+      do { w = POOL[Math.random() * POOL.length | 0]; } while (w === last);
+    }
+    if (db.settings.punct) {
+      if (startSentence && !/^\d/.test(w)) w = w[0].toUpperCase() + w.slice(1);
+      startSentence = false;
+      const r = Math.random();
+      if (r < 0.08) { w += '.'; startSentence = true; }
+      else if (r < 0.16) w += ',';
+      else if (r < 0.185) { w += '?'; startSentence = true; }
+      else if (r < 0.21) w = '"' + w + '"';
+    }
+    out.push(w);
+  }
+  return out;
+}
+
+const PARAS = ["The morning train was nearly empty, so Clara found a seat by the window and watched the fields slide past. A thin mist hung over the river, and a lone heron stood in the shallows as if it were waiting for something. She opened her notebook, but for a long while she only listened to the rhythm of the wheels.", "Good habits are built slowly. Nobody becomes a fast typist in a single afternoon, but a few focused minutes each day add up faster than most people expect. Keep your eyes on the screen, let your fingers find their own way, and accept that a small mistake is better than a long pause.", "At the edge of the harbor, an old lighthouse kept watch over the grey water. Fishermen said it had guided their grandfathers home through storms that no map could predict. Every evening the keeper climbed the narrow stairs, lit the great lamp, and wrote a single line in the logbook.", "Bread is simple, yet it rewards patience. Flour, water, salt, and time are all that you need, and the time matters most. Let the dough rest in a warm corner of the kitchen, and by the evening it will have grown into something soft, light, and full of small bubbles.", "Why do clouds change shape so quickly? The answer lies in the air itself, which is always rising, cooling, and mixing with its surroundings. A cloud that looks like a ship at noon may be a mountain by the time you have finished your lunch.", "The market opened at dawn, and the street filled with the smell of oranges, coffee, and fresh paper. Vendors called out their prices while children ran between the stalls with coins in their hands. By midday the best fruit was gone, and only the patient shoppers went home satisfied.", "A good map does more than show where things are. It tells you what the mapmaker thought was important, and it quietly leaves out everything else. When you travel with one, remember that the land was there long before anyone drew a line on it.", "Winter arrived overnight. The garden, green on Friday, was silver by Saturday, and every leaf wore a thin coat of frost. The cat studied the window for a while, decided that the outside world could wait, and curled up beside the warm radiator.", "Learning an instrument is mostly a matter of repetition with attention. You play the same phrase slowly, notice where your hands hesitate, and then play it again until the hesitation disappears. One day the music simply flows, and you cannot say exactly when it began.", "The library stayed open late on Thursdays, and a small group of regulars always claimed the tables near the back. They read, wrote, and occasionally whispered a joke that made the librarian raise one eyebrow. Nobody minded, because the quiet was warm and the lamps were kind.", "On the far side of the mountain, a narrow path wound through tall pines and over a stream that sparkled in the sun. Hikers who reached the top were rewarded with a wide view of the valley, where tiny villages sat like scattered stones. The climb was hard, but nobody ever regretted it.", "Engineers often say that a bridge is only as strong as its smallest bolt. Every piece has a job, and every job depends on the pieces around it. That is why careful work matters, even when nobody is watching and no one will ever see the result.", "The old bookshop on Willow Lane smelled of dust, paper, and cinnamon tea. Every shelf bent slightly under its load, and the owner knew exactly where each volume belonged. Customers came in looking for one thing and left with three, usually because a stranger had pressed an unexpected novel into their hands.", "Rain began just after midnight, softly at first, then in long silver sheets against the roof. Mara pulled her blanket higher and listened to the gutters sing. Somewhere down the street a lone dog barked twice and gave up, and the whole neighborhood settled back into the steady, drumming dark.", "A good teacher does not hand over answers. Instead she asks a question that keeps working in your mind for days, until the answer arrives on its own while you are washing dishes or waiting for a bus. That quiet moment of understanding is worth more than any page of notes.", "The ferry left the dock at eight, trailing a pale wake across the bay. Gulls followed for a while, tilting on the wind, then lost interest and wheeled back toward the harbor. Passengers leaned on the rail with paper cups of coffee and watched the far shore rise slowly out of the haze.", "Every garden teaches patience. You plant a seed, water the soil, and then you wait while nothing seems to happen. Weeks later a tiny green curl pushes through the dirt, and all that waiting suddenly feels like a small and private miracle that belongs only to you.", "Deep in the forest there is a clearing where the light falls in golden columns. Moss covers the fallen logs, and ferns unroll beside a thin stream that never seems to dry. Travelers who find it tend to speak in whispers, as though the place were a quiet room in a very old house.", "Typing well is a lot like riding a bicycle. At first every movement feels awkward and deliberate, and you wobble from one key to the next. Then something clicks, your hands begin to move without being told, and you realize that you are no longer thinking about the letters at all.", "The astronomer climbed the hill each clear night with a thermos, a folding chair, and a battered notebook. She charted faint smudges of light that most people never notice, writing down dates and positions in small neat numbers. Some mornings she wondered whether anyone would ever read her pages, but she kept writing anyway.", "Trains in the mountains move slowly, and nobody seems to mind. They creep along cliffs and across thin bridges while snow gathers on the window ledges. Passengers share bread and cheese, trade stories in three languages, and arrive at the next station feeling less like strangers than when they began.", "A strong team is not made of identical people. It needs someone who plans carefully, someone who leaps ahead, and someone who notices the small detail everyone else missed. When those differences are respected, the group moves faster and further than any one person could have managed alone.", "The bakery opened before the sun rose, and the first loaves came out of the oven with crackling crusts. Neighbors lined up in the cold, stamping their boots and breathing little clouds into the air. By the time the sky turned pink, the shelves were half empty and the whole street smelled like warm butter.", "Why do we remember some days perfectly and forget others completely? Scientists think the brain keeps what feels new, surprising, or emotional, and quietly lets the ordinary hours slip away. That is why a single odd afternoon can outlast an entire boring month in your memory.", "On the last day of summer the lake was perfectly still. A single canoe drifted near the reeds, and two children trailed their fingers in the cool water. Nobody spoke, because everyone sensed that the season was ending, and nobody wanted to be the one who said so out loud.", "The inventor kept a messy workshop filled with half finished machines, coils of copper wire, and cups of cold tea. Visitors often asked how she found anything at all. She would smile, reach into a pile without looking, and pull out exactly the small brass gear that she needed.", "Mountains do not care how fast you climb. They reward steady feet, careful breathing, and a willingness to turn back when the weather changes. The best climbers are rarely the strongest ones, but the ones who listen closely and remember that the summit is only halfway to home.", "Old maps show dragons at the edges of the sea, not because anyone had seen them, but because honest mapmakers needed a way to say that they did not know. There is something brave about that. Admitting the limits of your knowledge is the first step toward drawing a better chart.", "At dusk the city changes its mind. Offices empty, lamps flicker on, and the pavement fills with people heading toward music, dinner, or home. A saxophone drifts from an upstairs window, a bus sighs at the corner, and for a short while the whole place feels like it is breathing together.", "Cooking for friends is an act of quiet generosity. You chop the onions, taste the sauce, and adjust the salt again and again, hoping that the table will feel warm when everyone sits down. Nobody remembers the exact recipe later, but they remember how the evening felt.", "A good first sentence should work like a lighthouse. It signals the reader from far away, promises that the water ahead is worth crossing, and keeps its light steady until the final line. Writers spend hours polishing it, and readers glance at it for only a second.", "Winter mornings in the village began with the sound of shovels scraping against stone. Smoke rose straight up from every chimney, and the baker waved from his doorway as the children trudged to school in oversized boots. By noon the sun had softened the edges of the snow into glittering slush.", "Practice is more honest than talent. Talent may open a door, but only practice carries you across the room and up the stairs. Anyone who has watched a pianist repeat the same measure forty times understands that beauty is usually built from small, stubborn, unglamorous efforts.", "The desert at night is louder than you might expect. Insects hum in the dry grass, a distant coyote calls, and the wind drags sand across the rocks with a sound like quiet applause. Above it all, the stars crowd so thickly that the sky seems almost too full of light.", "When the power went out, the whole building went quiet. Then doors began to open, and neighbors who had never spoken stepped into the hallway holding candles and flashlights. Someone brought a deck of cards, someone else brought cookies, and the dark evening turned into an unexpected party.", "A river carves a canyon not through force but through persistence. Drop by drop and year by year, it wears down even the hardest stone. People who feel that their daily efforts are too small to matter might remember that the greatest valleys were shaped by something gentle."];
+let bag = [];
+function paragraphWords(n) {
+  const st = db.settings, out = [];
+  while (out.length < n) {
+    if (!bag.length) bag = PARAS.slice().sort(() => Math.random() - .5);
+    let t = bag.pop();
+    if (!st.punct) t = t.toLowerCase().replace(/[^a-z ]/g, '');
+    for (const w of t.split(' ')) {
+      let x = w;
+      if (st.numbers && Math.random() < 0.1) x = String(Math.floor(Math.random() * (Math.random() < 0.5 ? 100 : 10000))) + (st.punct ? (w.match(/[.,?]$/) || [''])[0] : '');
+      out.push(x);
+    }
+  }
+  return out.slice(0, n);
+}
+const makeWords = n => db.settings.mode.endsWith('wordified') ? randomWords(n) : paragraphWords(n);
+const isHard = () => db.settings.mode.startsWith('hardcore');
+
+/* ---------- state ---------- */
+const view = $('#view'), inner = $('#inner'), caret = $('#caret'), inp = $('#inp');
+let words = [], wordEls = [], typed = [];
+let wi = 0, started = false, finished = false;
+let t0 = 0, ticker = null;
+let ck = 0, wk = 0, keySecs = [], samples = [];
+let prevLen = 0, lineH = 40;
+let lastResult = null;
+
+const MODES = {
+  normal: ['Normal', 'Real paragraphs. Backspace can step back into earlier words.'],
+  hardcore: ['Hardcore', 'Real paragraphs. Press space and that word is locked for good.'],
+  wordified: ['Wordified', 'Random words instead of paragraphs. Going back is allowed.'],
+  'hardcore-wordified': ['Hardcore wordified', 'Random words, and each one is locked once you press space.']
+};
+const modeLabel = () => {
+  const s = db.settings;
+  return (s.type === 'time' ? s.n + ' seconds' : s.n + ' words') + ', ' + MODES[s.mode][0] + (s.punct ? ', punctuation' : '') + (s.numbers ? ', numbers' : '');
+};
+const shortLabel = () => {
+  const s = db.settings;
+  return (s.type === 'time' ? s.n + 's' : s.n + ' words') + ' ' + MODES[s.mode][0] + (s.punct ? ' +punct' : '') + (s.numbers ? ' +num' : '');
+};
+const cfgKey = () => { const s = db.settings; return s.type + s.n + ':' + s.mode + ':' + (s.punct ? 'p' : '') + (s.numbers ? '#' : ''); };
+
+function syncFocus() {
+  view.classList.toggle('unfocused', document.activeElement !== inp && !finished);
+}
+
+/* ---------- screens ---------- */
+let screen = 'splash', splashReady = false;
+let capsLockOn = false, capsLockWarnedThisTest = false;
+function show(n) {
+  screen = n;
+  const id = { test: 'testView', mode: 'modeView', opts: 'optsView', cert: 'certView' }[n] || n;
+  ['splash', 'home', 'timedTests', 'wordTests', 'quests', 'shop', 'about', 'modeView', 'optsView', 'testView', 'results', 'certView'].forEach(x => { const el = $('#' + x); if (el) el.classList.toggle('hide', x !== id); });
+  document.querySelectorAll('[data-nav]').forEach(b => b.classList.toggle('active', b.dataset.nav === (['test','mode','opts','results','cert'].includes(n) ? (db.settings.type === 'time' ? 'timedTests' : 'wordTests') : n)));
+}
+function goHome() {
+  clearInterval(ticker); ticker = null;
+  started = false; finished = false; inp.blur();
+  show('home'); renderHome();
+}
+function begin(t) {
+  const s = db.settings;
+  s.type = t; s.n = t === 'time' ? s.tn : s.wn;
+  save(); show('mode'); renderSetup();
+}
+function back() { if (screen === 'opts') { show('mode'); renderSetup(); } else if (screen === 'cert') show('results'); else goHome(); }
+function renderSetup() {
+  const s = db.settings, kind = s.type === 'time' ? s.n + ' second time test' : s.n + ' word test';
+  $('#modeSub').textContent = kind;
+  $('#optsSub').textContent = kind + ', ' + MODES[s.mode][0];
+  $('#modeGrid').innerHTML = Object.entries(MODES).map(([k, [n, d]]) => `<button class="mcard ${s.mode === k ? 'on' : ''}" data-mode="${k}"><b>${n}</b><span>${d}</span></button>`).join('');
+  $('#tPunct').classList.toggle('on', s.punct); $('#tPunct').setAttribute('aria-pressed', s.punct);
+  $('#tNum').classList.toggle('on', s.numbers); $('#tNum').setAttribute('aria-pressed', s.numbers);
+}
+function dismissSplash() {
+  if (!splashReady) return;
+  splashReady = false;
+  $('#splash').classList.add('leave');
+  setTimeout(() => { show('home'); renderHome(); }, 450);
+}
+function runSplash() {
+  const msg = 'Find your speed.', el = $('#spTxt'), go = $('#spGo');
+  const ready = () => { el.textContent = msg; go.textContent = 'Tap or press any key to begin'; go.classList.add('ready'); splashReady = true; };
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches) return ready();
+  let k = 0;
+  const t = setInterval(() => { el.textContent = msg.slice(0, ++k); if (k >= msg.length) clearInterval(t); }, 85);
+  setTimeout(ready, 1800);
+}
+$('#splash').addEventListener('pointerdown', dismissSplash);
+
+/* ---------- offline EXP, rank and streak ---------- */
+const RANKS = [
+  { name: 'Whisper', min: 0, max: 200 },
+  { name: 'Breeze', min: 200, max: 700 },
+  { name: 'Zephyr', min: 700, max: 1500 },
+  { name: 'Gale', min: 1500, max: 3000 },
+  { name: 'Vortex', min: 3000, max: 10000 },
+  { name: 'Hurricane', min: 10000, max: Infinity }
+];
+
+/* ---------- rank icons ---------- */
+function spiralPath(turns, r0, r1, rot) {
+  let d = '';
+  for (let i = 0; i <= 60; i++) {
+    const t = i / 60, a = rot + t * turns * 2 * Math.PI, r = r0 + (r1 - r0) * t;
+    d += (i ? 'L' : 'M') + (24 + r * Math.cos(a)).toFixed(1) + ' ' + (24 + r * Math.sin(a)).toFixed(1);
+  }
+  return d;
+}
+function rankIcon(name) {
+  const open = '<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">', end = '</svg>';
+  switch (name) {
+    case 'Whisper': return open +
+      '<path class="w-wisp" pathLength="100" d="M6 29 C14 19 22 36 30 26 S42 20 42 20"/>' +
+      '<path class="w-wisp b" pathLength="100" d="M10 37 C17 31 24 40 32 35"/>' +
+      '<circle class="fillc w-mote" cx="34" cy="22" r="1.6"/><circle class="fillc w-mote b" cx="14" cy="26" r="1.2"/>' + end;
+    case 'Breeze': {
+      const a = 'M5 15 q6.5 -7 13 0 t13 0 t12 0', b = 'M5 25 q6.5 -7 13 0 t13 0 t12 0', c = 'M9 35 q5 -6 10 0 t10 0 t10 0';
+      return open +
+        `<path class="b-base" d="${a}"/><path class="b-base" d="${b}"/><path class="b-base" d="${c}"/>` +
+        `<path class="b-flow" pathLength="100" d="${a}"/><path class="b-flow b2" pathLength="100" d="${b}"/><path class="b-flow b3" pathLength="100" d="${c}"/>` + end;
+    }
+    case 'Zephyr': return open +
+      '<g class="z-leaf"><path class="lf" d="M31 8 C18 9 10 19 12 33 C27 34 37 25 31 8 Z"/><path d="M12 33 L26 17"/></g>' +
+      '<path class="z-wind" pathLength="100" d="M5 41 H34 a4 4 0 1 0 -4 -4"/>' + end;
+    case 'Gale': return open + '<g class="g-all">' +
+      '<path d="M5 16 H30 a6 6 0 1 0 -6 -6"/><path d="M5 26 H40 a6 6 0 1 1 -6 6"/><path d="M5 36 H21"/>' +
+      '<path class="g-streak" pathLength="100" d="M2 21 H44"/><path class="g-streak b2" pathLength="100" d="M2 41 H40"/>' +
+      '<circle class="fillc g-deb" cx="12" cy="21" r="1.7"/><circle class="fillc g-deb b2" cx="20" cy="31" r="1.4"/><circle class="fillc g-deb b3" cx="8" cy="12" r="1.2"/>' +
+      '</g>' + end;
+    case 'Vortex': return open +
+      `<g class="v-spin"><path d="${spiralPath(1.6, 3, 21, 0)}"/><path d="${spiralPath(1.6, 3, 21, Math.PI)}"/></g>` +
+      '<circle class="fillc v-core" cx="24" cy="24" r="2.4"/>' + end;
+    case 'Hurricane': return open +
+      '<circle class="h-ring" cx="24" cy="24" r="22"/>' +
+      `<g class="h-spin" stroke-width="3.2"><path d="${spiralPath(1.1, 6, 19, 0)}"/><path d="${spiralPath(1.1, 6, 19, 2 * Math.PI / 3)}"/><path d="${spiralPath(1.1, 6, 19, 4 * Math.PI / 3)}"/></g>` +
+      '<circle class="fillc h-eye" cx="24" cy="24" r="3"/>' +
+      '<path class="h-bolt" d="M27 9 L17 27 H23.5 L20.5 40 L32 21 H25 Z"/>' + end;
+  }
+  return '';
+}
+function fillRankIcons() {
+  document.querySelectorAll('.ricon[data-rank]').forEach(el => { if (!el.firstChild) el.innerHTML = rankIcon(el.dataset.rank); });
+}
+const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function dayGap(a,b) {
+  if (!a || !b) return Infinity;
+  const parse = x => { const [y,m,d] = x.split('-').map(Number); return Date.UTC(y,m-1,d); };
+  return Math.round((parse(b)-parse(a))/86400000);
+}
+function currentRank(exp) {
+  for (let i = RANKS.length-1; i >= 0; i--) if (exp >= RANKS[i].min) return RANKS[i];
+  return RANKS[0];
+}
+const RW_ICO = {
+  bolt: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>',
+  flame: '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12 2c.6 3.6 5.5 5.6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.6-4 2.7-6 .5 1.3 1.2 2.1 2.1 2.6C11 7.5 11.4 4.6 12 2z"/></svg>',
+  check: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  gift: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="9" width="18" height="4" rx="1"/><path d="M5 13v8h14v-8M12 9v12M12 9C9 9 7 8 7 6s3-3 5 0c2-3 5-2 5 0s-2 3-5 3z"/></svg>',
+  key: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>'
+};
+const streakBonus = d => 10 + Math.min(30, Math.max(0, d - 1)) * 2;
+function rewardHtml(p) {
+  let g = p.lastGain;
+  if (!g && p.lastMessage) {   // progress saved before rewards were stored as data
+    const m = /^\+(\d+) test EXP(?: · \+(\d+) streak EXP)?/.exec(p.lastMessage), c = /^Code redeemed: \+(\d+) EXP/.exec(p.lastMessage);
+    if (m) g = { kind: 'test', test: +m[1], streak: +(m[2] || 0) };
+    else if (c) g = { kind: 'code', amount: +c[1] };
+  }
+  const chip = (col, ico, big, small, cls = '') => `<span class="rw-chip ${cls}" style="--c:${col}"><span class="rw-ico">${RW_ICO[ico]}</span><span class="rw-txt"><b>${big}</b><small>${small}</small></span></span>`;
+  if (!g) return `<div class="rw-head"><span class="rw-label">LAST REWARD</span></div><div class="rw-chips">${chip('var(--dim)', 'key', 'No rewards yet', 'Finish a test to earn EXP', 'muted')}</div>`;
+  let chips, total;
+  if (g.kind === 'code') { chips = chip('#14b8a6', 'gift', `+${g.amount} EXP`, 'Code redeemed'); total = g.amount; }
+  else {
+    chips = chip('var(--rc)', 'bolt', `+${g.test} EXP`, 'Test completed') +
+      (g.streak ? chip('#ff8a1f', 'flame', `+${g.streak} EXP`, 'Daily streak bonus') : chip('var(--dim)', 'check', 'Streak bonus', 'Already claimed today', 'muted'));
+    total = g.test + g.streak;
+  }
+  const today = localDay();
+  const hint = p.lastDay === today ? `Come back tomorrow for +${streakBonus((p.streak || 0) + 1)} streak EXP.`
+    : (p.lastDay && dayGap(p.lastDay, today) === 1) ? `Finish a test today to extend your streak: +${streakBonus((p.streak || 0) + 1)} EXP.`
+    : `Finish a test today to start a streak: +${streakBonus(1)} EXP.`;
+  return `<div class="rw-head"><span class="rw-label">LAST REWARD</span><span class="rw-total">+${total} EXP</span></div><div class="rw-chips">${chips}</div><div class="rw-hint">${RW_ICO.flame}<span>${hint}</span></div>`;
+}
+let shownExp = null, shownPct = 0, shownIdx = -1, expAnim = 0, shownReward = null;
+function countUp(el, from, to) {
+  cancelAnimationFrame(expAnim);
+  if (matchMedia('(prefers-reduced-motion:reduce)').matches) { el.textContent = to.toLocaleString(); return; }
+  const t0 = performance.now(), dur = Math.min(1500, 600 + Math.abs(to - from) * 10);
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(from + (to - from) * e).toLocaleString();
+    if (k < 1) expAnim = requestAnimationFrame(step);
+  };
+  expAnim = requestAnimationFrame(step);
+}
+function renderProgress() {
+  const p = db.progress || (db.progress = {exp:0,streak:0,lastDay:'',lastRewardDay:'',tests:0});
+  const exp = Math.max(0, Number(p.exp)||0), rank = currentRank(exp), idx = RANKS.indexOf(rank);
+  const next = RANKS[idx+1];
+  $('.progress-card').dataset.rank = rank.name;
+  $('#rankName').textContent = rank.name;
+  if ($('#typeTokens')) $('#typeTokens').textContent = (p.tokens || 0).toLocaleString();
+  if ($('#shopTokens')) $('#shopTokens').textContent = `${(p.tokens || 0).toLocaleString()} Type Tokens`;
+  if ($('#boostStatus')) $('#boostStatus').textContent = (p.boostUntil || 0) > Date.now() ? boostLabel(p) : 'No EXP boost active';
+  const rIcon = $('#rankIcon');
+  if (rIcon.dataset.rank !== rank.name) {
+    const had = rIcon.dataset.rank;
+    rIcon.dataset.rank = rank.name; rIcon.innerHTML = rankIcon(rank.name);
+    if (had) { rIcon.classList.remove('pop'); void rIcon.offsetWidth; rIcon.classList.add('pop'); }
+  }
+  const ladder = $('#rankLadder');
+  if (ladder.dataset.idx !== String(idx)) {
+    ladder.dataset.idx = idx;
+    ladder.innerHTML = RANKS.map((r, i) => `<div class="rl ${i < idx ? 'done' : i === idx ? 'cur' : 'lock'}"><span class="ricon" data-rank="${r.name}" aria-hidden="true">${rankIcon(r.name)}</span><b>${r.name}</b><small>${r.min.toLocaleString()}${i ? '+' : ''} EXP</small></div>`).join('');
+  }
+  const pct = next ? Math.max(0, Math.min(100, (exp - rank.min) / (next.min - rank.min) * 100)) : 100;
+  $('#rankPct').textContent = next ? Math.floor(pct) + '%' : 'MAX';
+  const fill = $('#rankFill'), expEl = $('#totalExp');
+  if (fill.offsetParent !== null) {
+    const startPct = shownIdx !== idx ? 0 : shownPct;
+    if (startPct !== pct) { fill.style.transition = 'none'; fill.style.width = startPct + '%'; void fill.offsetWidth; fill.style.transition = ''; }
+    fill.style.width = pct + '%';
+    if (shownExp == null) expEl.textContent = exp.toLocaleString();
+    else if (exp !== shownExp) {
+      countUp(expEl, shownExp, exp);
+      if (exp > shownExp) { const g = $('#expGain'); g.textContent = '+' + (exp - shownExp).toLocaleString(); g.classList.remove('go'); void g.offsetWidth; g.classList.add('go'); }
+    }
+    shownExp = exp; shownPct = pct; shownIdx = idx;
+  } else {
+    fill.style.width = pct + '%';
+    expEl.textContent = exp.toLocaleString();
+  }
+  $('#rankNext').textContent = next ? `${Math.max(0,next.min-exp).toLocaleString()} EXP to ${next.name}` : 'Maximum rank reached';
+  const missedDay = p.lastDay && dayGap(p.lastDay, localDay()) > 1;
+  const visibleStreak = missedDay ? 0 : (p.streak || 0);
+  $('#streakCount').textContent = `${visibleStreak} day${visibleStreak===1?'':'s'} streak`;
+  const rw = rewardHtml(p), msg = $('#progressMessage');
+  msg.innerHTML = rw;
+  if (fill.offsetParent !== null) {
+    if (shownReward !== null && shownReward !== rw) { msg.classList.remove('fresh'); void msg.offsetWidth; msg.classList.add('fresh'); setTimeout(() => msg.classList.remove('fresh'), 1500); }
+    shownReward = rw;
+  }
+}
+function awardProgress(wpm, acc) {
+  const p = db.progress;
+  const today = localDay();
+  let streakExp = 0, streakTokens = 0;
+  if (p.lastDay !== today) {
+    const gap = dayGap(p.lastDay, today);
+    p.streak = gap === 1 ? (p.streak || 0) + 1 : 1;
+    p.lastDay = today;
+    // Daily streak bonus grows slowly and is capped.
+    streakExp = streakBonus(p.streak);
+    streakTokens = 3 + Math.min(12, p.streak * 2);
+    p.exp += streakExp; p.tokens = (p.tokens || 0) + streakTokens;
+    p.lastRewardDay = today;
+  }
+  const s = db.settings;
+  const testSize = s.type === 'time' ? s.n / 15 : s.n / 10;
+  const sizeFactor = Math.max(1, Math.sqrt(testSize));
+  const performanceFactor = Math.max(0.15, Math.min(1.5, (acc / 100) * (0.5 + Math.min(wpm,120)/120)));
+  let testExp = Math.max(1, Math.round((8 + Math.min(wpm,120)*0.35) * sizeFactor * performanceFactor));
+  const testTokens = Math.max(1, Math.round((s.type === 'time' ? s.n / 30 : s.n / 20) * (0.35 + acc / 100) * (0.5 + Math.min(wpm,150) / 100)));
+  const activeBoost = (p.boostUntil || 0) > Date.now() ? (p.boostMultiplier || 1) : 1;
+  testExp = Math.round(testExp * activeBoost); p.exp += testExp; p.tokens = (p.tokens || 0) + testTokens;
+  p.tests = (p.tests || 0) + 1;
+  p.lastMessage = `+${testExp} test EXP${streakExp ? ` · +${streakExp} streak EXP` : ' · daily streak EXP already claimed'}.`;
+  p.lastGain = { kind: 'test', test: testExp, streak: streakExp, tokens: testTokens + streakTokens, boost: activeBoost };
+  renderProgress();
+  return {testExp, streakExp, testTokens, streakTokens};
+}
+
+/* ---------- quests and Type Token shop ---------- */
+const QUESTS = {
+ daily:[
+  {id:'d_test',icon:'⌨',title:'Warm-up run',desc:'Complete 1 typing test today.',goal:1,metric:'tests',exp:20,tokens:8},
+  {id:'d_accuracy',icon:'◎',title:'Precision typing',desc:'Finish a test with at least 95% accuracy.',goal:1,metric:'accurate',exp:35,tokens:12},
+  {id:'d_words',icon:'✦',title:'Wordsmith',desc:'Type 100 words across tests today.',goal:100,metric:'words',exp:45,tokens:16}
+ ],
+ weekly:[
+  {id:'w_tests',icon:'⚡',title:'Consistency streak',desc:'Complete 10 tests this week.',goal:10,metric:'tests',exp:120,tokens:55},
+  {id:'w_words',icon:'✧',title:'Keyboard marathon',desc:'Type 500 words this week.',goal:500,metric:'words',exp:150,tokens:70},
+  {id:'w_accurate',icon:'◇',title:'Clean execution',desc:'Complete 5 tests with 95%+ accuracy.',goal:5,metric:'accurate',exp:180,tokens:85}
+ ],
+ monthly:[
+  {id:'m_tests',icon:'♛',title:'Dedicated typist',desc:'Complete 40 tests this month.',goal:40,metric:'tests',exp:500,tokens:220},
+  {id:'m_words',icon:'✺',title:'Word machine',desc:'Type 2,500 words this month.',goal:2500,metric:'words',exp:600,tokens:260},
+  {id:'m_accurate',icon:'⬡',title:'Accuracy master',desc:'Complete 20 tests with 95%+ accuracy.',goal:20,metric:'accurate',exp:700,tokens:300}
+ ]
+};
+const QICON={
+ tests:'<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M7 14h10"/></svg>',
+ accurate:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12h.01"/></svg>',
+ words:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h9"/><path d="m16 16 2 2 3-4"/></svg>'
+};
+const BOLT='<svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>';
+const TOKMINI='<svg class="tok-mini" viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2 35 11v18L20 38 5 29V11Z"/><path d="M13 12h14M13 20h14M13 28h8"/><path d="m23 24 4 4-4 4"/></svg>';
+const boostLabel=p=>{const t=Math.max(0,Math.ceil((p.boostUntil-Date.now())/1000));return `${p.boostMultiplier}× EXP · ${Math.floor(t/60)}:${String(t%60).padStart(2,'0')} left`;};
+let questPeriod='daily';
+function periodKey(period){const d=new Date(), y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'); if(period==='daily') return localDay(d); if(period==='weekly'){const x=new Date(y,d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return localDay(x);} return `${y}-${m}`;}
+function questState(){const p=db.progress; if(!p.questData)p.questData={}; for(const period of Object.keys(QUESTS)){const key=periodKey(period);if(!p.questData[period]||p.questData[period].key!==key)p.questData[period]={key,tests:0,words:0,accurate:0,claimed:[]};}return p.questData;}
+function renderQuests(){const data=questState()[questPeriod];$('#questList').innerHTML=QUESTS[questPeriod].map(q=>{const value=data[q.metric]||0,done=value>=q.goal,claimed=data.claimed.includes(q.id),pct=Math.min(100,Math.round(value/q.goal*100));return `<article class="quest-card"><div class="quest-icon">${QICON[q.metric]}</div><div class="quest-copy"><b>${q.title}</b><p>${q.desc}</p><div class="quest-progress"><i style="width:${pct}%"></i></div><p>${Math.min(value,q.goal).toLocaleString()} / ${q.goal.toLocaleString()} · <span class="quest-reward">+${q.exp} EXP · +${q.tokens} ${TOKMINI}Type Tokens</span></p></div><button class="quest-claim" data-claim="${q.id}" ${(!done||claimed)?'disabled':''}>${claimed?'Claimed':done?'Claim':'In progress'}</button></article>`}).join('');}
+const BOOSTS=[{mult:2,mins:5,cost:25},{mult:3,mins:5,cost:40},{mult:2,mins:10,cost:42},{mult:3,mins:10,cost:68},{mult:2,mins:15,cost:58},{mult:3,mins:15,cost:95}];
+function renderShop(){const p=db.progress;$('#shopTokens').textContent=`${(p.tokens||0).toLocaleString()} Type Tokens`;$('#boostShop').innerHTML=BOOSTS.map((b,i)=>`<article class="boost-card"><div class="boost-symbol">${BOLT}</div><h2>${b.mult}× EXP Boost</h2><p>Lasts ${b.mins} minutes. Multiplies EXP from completed tests.</p><div class="boost-cost">${TOKMINI}${b.cost} Type Tokens</div><button class="btn" data-buy-boost="${i}" ${(p.tokens||0)<b.cost?'disabled':''}>Purchase boost</button></article>`).join('');$('#boostStatus').textContent=(p.boostUntil||0)>Date.now()?boostLabel(p):'No EXP boost active';}
+document.querySelector('.navbar').addEventListener('click',e=>{const b=e.target.closest('[data-nav]');if(!b)return;if(b.dataset.nav==='quests')renderQuests();if(b.dataset.nav==='shop')renderShop();});
+document.querySelector('.quest-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-qperiod]');if(!b)return;questPeriod=b.dataset.qperiod;document.querySelectorAll('[data-qperiod]').forEach(x=>x.classList.toggle('on',x===b));renderQuests();});
+$('#questList').addEventListener('click',e=>{const b=e.target.closest('[data-claim]');if(!b||b.disabled)return;const p=db.progress,data=questState()[questPeriod],q=QUESTS[questPeriod].find(x=>x.id===b.dataset.claim);if(!q||data.claimed.includes(q.id)||(data[q.metric]||0)<q.goal)return;data.claimed.push(q.id);p.exp=(p.exp||0)+q.exp;p.tokens=(p.tokens||0)+q.tokens;p.lastGain={kind:'quest',amount:q.exp,tokens:q.tokens};p.lastMessage=`Quest completed: +${q.exp} EXP and +${q.tokens} Type Tokens.`;save();renderProgress();renderQuests();});
+$('#boostShop').addEventListener('click',e=>{const b=e.target.closest('[data-buy-boost]');if(!b)return;const boost=BOOSTS[Number(b.dataset.buyBoost)],p=db.progress;if(!boost|| (p.tokens||0)<boost.cost){$('#shopStatus').textContent='Not enough Type Tokens yet.';return;}p.tokens-=boost.cost;const now=Date.now(),remaining=Math.max(0,(p.boostUntil||0)-now);p.boostMultiplier=boost.mult;p.boostUntil=Math.max(now,p.boostUntil||0)+boost.mins*60000; p.lastMessage=`Purchased ${boost.mult}× EXP boost.`;save();$('#shopStatus').textContent=`Purchased ${boost.mult}× EXP for ${boost.mins} minutes!`;renderProgress();renderShop();});
+setInterval(()=>{const p=db.progress,el=$('#boostStatus');if(el&&(p.boostUntil||0)>0)el.textContent=(p.boostUntil>Date.now())?boostLabel(p):'No EXP boost active';},1000);
+function recordQuestTest(acc,wordsCount){const data=questState();Object.values(data).forEach(d=>{d.tests=(d.tests||0)+1;d.words=(d.words||0)+wordsCount;if(acc>=95)d.accurate=(d.accurate||0)+1;});}
+
+/* ---------- Betterment analysis ---------- */
+function renderBetterment() {
+  const host = $('#baContent');
+  if (!host) return;
+  const runs = db.runs || [];
+  const count = Number(db.progress.tests || 0);
+  if (count < 3 || runs.length < 3) {
+    const left = Math.max(0, 3 - count);
+    host.innerHTML = `<div class="ba-lock"><strong>🔒 Analysis locked</strong><div class="ba-meta">Complete at least 3 typing tests to unlock your personal improvement report.</div><div class="ba-progress"><i style="width:${Math.min(100,count/3*100)}%"></i></div><div class="ba-meta">${Math.min(count,3)} of 3 tests completed · ${left} more to unlock</div></div>`;
+    return;
+  }
+  // Compare the average of the three most recent tests with the three before them.
+  const recent = runs.slice(-3);
+  const previous = runs.slice(-6,-3);
+  if (previous.length < 3) {
+    const avg = recent.reduce((n,r)=>n+(Number(r.wpm)||0),0)/recent.length;
+    host.innerHTML = `<div class="ba-status"><span class="ba-verdict steady">● Building your baseline</span></div><div class="ba-metrics"><div class="ba-metric"><small>Recent average speed</small><b>${Math.round(avg)} WPM</b></div><div class="ba-metric"><small>Tests analysed</small><b>${count}</b></div><div class="ba-metric"><small>Next milestone</small><b>6 tests</b></div></div><p class="ba-note">Your analysis is unlocked. Complete 3 more tests to compare your latest performance with an earlier set and get a reliable improvement direction.</p>`;
+    return;
+  }
+  const average = arr => arr.reduce((n,r)=>n+(Number(r.wpm)||0),0)/arr.length;
+  const now = average(recent), before = average(previous);
+  const delta = now-before, pct = before > 0 ? delta/before*100 : 0;
+  const verdict = pct > 2 ? 'IMPROVING' : pct < -2 ? 'DEPROVING' : 'STAYING SAME';
+  const cls = pct > 2 ? 'improving' : pct < -2 ? 'declining' : 'steady';
+  const sign = delta > 0 ? '+' : '';
+  const accNow = recent.reduce((n,r)=>n+(Number(r.acc)||0),0)/recent.length;
+  const accBefore = previous.reduce((n,r)=>n+(Number(r.acc)||0),0)/previous.length;
+  const series = runs.slice(-6);
+  const vals = series.map(r=>Number(r.wpm)||0);
+  const max = Math.max(1,...vals), min = Math.min(...vals);
+  const pts = vals.map((v,i)=>`${30+i*108},${145-(v-min)/(max-min||1)*100}`).join(' ');
+  const labels = series.map((r,i)=>`<text x="${30+i*108}" y="174" text-anchor="middle">${i+1}</text>`).join('');
+  host.innerHTML = `<div class="ba-status"><span class="ba-verdict ${cls}">${verdict}</span><span class="ba-change">${sign}${delta.toFixed(1)} WPM average (${sign}${pct.toFixed(1)}%)</span></div>
+    <div class="ba-metrics"><div class="ba-metric"><small>Latest 3-test average</small><b>${now.toFixed(1)} WPM</b></div><div class="ba-metric"><small>Previous 3-test average</small><b>${before.toFixed(1)} WPM</b></div><div class="ba-metric"><small>Accuracy change</small><b>${(accNow-accBefore)>0?'+':''}${(accNow-accBefore).toFixed(1)}%</b></div></div>
+    <svg class="ba-chart" viewBox="0 0 620 190" role="img" aria-label="Typing speed across the last six tests">
+      <line x1="30" y1="145" x2="590" y2="145" stroke="var(--line)"/><line x1="30" y1="95" x2="590" y2="95" stroke="var(--line)" stroke-dasharray="3 5"/><line x1="30" y1="45" x2="590" y2="45" stroke="var(--line)" stroke-dasharray="3 5"/>
+      <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      ${vals.map((v,i)=>`<circle cx="${30+i*108}" cy="${145-(v-min)/(max-min||1)*100}" r="4" fill="var(--accent)"/>`).join('')}
+      ${labels}
+    </svg><div class="ba-meta">Last 6 tests · WPM (words per minute)</div>
+    <p class="ba-note">Direction is based on the average speed of your latest 3 tests versus the 3 before them. Changes within ±2% count as staying the same. Results are saved on this device.</p>`;
+}
+
+/* ---------- home UI ---------- */
+function renderHome() {
+  renderProgress();
+  renderBetterment();
+  const s = db.settings;
+  [['time', [15, 30, 60, 120, 180, 300, 600, 900], s.tn, 's'], ['words', [10, 25, 50, 100, 150, 200, 300, 500], s.wn, '']].forEach(([t, amts, cur, u]) => {
+    const isPreset = amts.includes(cur);
+    document.querySelectorAll(`[data-chips=${t}]`).forEach(el => {
+      el.innerHTML = amts.map(a => `<button data-n="${a}" class="${cur === a ? 'on' : ''}">${a}${u}</button>`).join('') + `<button data-custom="${t}" class="${!isPreset ? 'on' : ''}" aria-label="Set custom ${t === 'time' ? 'duration' : 'word count'}">CUSTOM</button>`;
+    });
+    const b = Math.max(0, ...Object.entries(db.best).filter(([k]) => k.startsWith(t + cur + ':')).map(e => e[1]));
+    document.querySelectorAll(`[data-best=${t}]`).forEach(el => { el.innerHTML = b ? `Your best: <b>${b} wpm</b>` : 'No best yet'; });
+  });
+  $('#best').textContent = db.runs.length ? `${db.runs.length} saved run${db.runs.length > 1 ? 's' : ''}` : 'No runs yet';
+  if ($('#dashTests')) $('#dashTests').textContent = String(db.progress.tests || 0);
+  if ($('#dashRuns')) $('#dashRuns').textContent = String(db.runs.length);
+  if ($('#dashBest')) { const best = Math.max(0, ...Object.values(db.best).map(Number)); $('#dashBest').textContent = best ? `${best} WPM` : '—'; }
+}
+function handleTestPickerClick(e) {
+  const b = e.target.closest('button'); if (!b) return;
+  const s = db.settings, ch = b.closest('[data-chips]');
+  if (b.dataset.start) return begin(b.dataset.start);
+  if (b.dataset.custom) {
+    const type = b.dataset.custom;
+    const isTime = type === 'time';
+    const current = isTime ? s.tn : s.wn;
+    const label = isTime ? 'seconds (1–3600)' : 'words (1–2000)';
+    const answer = prompt(`Enter a custom test ${isTime ? 'duration in seconds' : 'word count'} ${label}:`, String(current));
+    if (answer === null) return;
+    const value = Number(answer.trim());
+    const max = isTime ? 3600 : 2000;
+    if (!Number.isInteger(value) || value < 1 || value > max) {
+      alert(`Please enter a whole number from 1 to ${max}.`);
+      return;
+    }
+    s[isTime ? 'tn' : 'wn'] = value;
+  } else if (ch && b.dataset.n) s[ch.dataset.chips === 'time' ? 'tn' : 'wn'] = +b.dataset.n;
+  else if (b.dataset.toggle) s[b.dataset.toggle] = !s[b.dataset.toggle];
+  save(); renderHome();
+}
+$('#home').addEventListener('click', handleTestPickerClick);
+$('#timedTests').addEventListener('click', handleTestPickerClick);
+$('#wordTests').addEventListener('click', handleTestPickerClick);
+document.querySelector('.navbar').addEventListener('click', e => {
+  const b = e.target.closest('[data-nav]'); if (!b) return;
+  clearInterval(ticker); ticker = null; started = false; finished = false; inp.blur();
+  show(b.dataset.nav);
+  if (b.dataset.nav === 'home') renderHome();
+  else if (b.dataset.nav === 'timedTests' || b.dataset.nav === 'wordTests') renderHome();
+});
+$('#modeView').addEventListener('click', e => {
+  const b = e.target.closest('[data-mode]');
+  if (b) { db.settings.mode = b.dataset.mode; save(); show('opts'); renderSetup(); }
+  else if (e.target.closest('#modeBack')) back();
+});
+$('#optsView').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'optsBack') back();
+  else if (b.id === 'beginBtn') reset(false);
+  else if (b.dataset.toggle) { db.settings[b.dataset.toggle] = !db.settings[b.dataset.toggle]; save(); renderSetup(); if (e.detail) b.blur(); }
+});
+$('#backBtn').onclick = goHome;
+$('#menuBtn').onclick = goHome;
+
+/* ---------- render test ---------- */
+function buildWord(w) {
+  const el = document.createElement('div');
+  el.className = 'word';
+  for (const c of w) { const s = document.createElement('span'); s.className = 'l'; s.textContent = c; el.appendChild(s); }
+  return el;
+}
+function renderWords() {
+  inner.querySelectorAll('.word').forEach(n => n.remove());
+  wordEls = words.map(buildWord);
+  wordEls.forEach(el => inner.appendChild(el));
+  inner.style.transition = 'none';
+  inner.style.transform = 'translateY(0)';
+  void inner.offsetHeight;
+  inner.style.transition = '';
+}
+function appendWords(n) {
+  makeWords(n).forEach(w => { words.push(w); const el = buildWord(w); wordEls.push(el); inner.appendChild(el); });
+}
+function paint(i, t) {
+  const el = wordEls[i], target = words[i];
+  while (el.children.length > target.length) el.removeChild(el.lastChild);
+  const ch = el.children;
+  for (let k = 0; k < target.length; k++) ch[k].className = k < t.length ? (t[k] === target[k] ? 'l ok' : 'l bad') : 'l';
+  for (let k = target.length; k < t.length; k++) {
+    const s = document.createElement('span'); s.className = 'l extra'; s.textContent = t[k]; el.appendChild(s);
+  }
+}
+function placeCaret() {
+  const w = wordEls[wi]; if (!w) return;
+  const t = inp.value.length, tl = words[wi].length, ch = w.children;
+  let x;
+  if (t < tl) x = ch[t].offsetLeft;
+  else { const e = ch[ch.length - 1]; x = e.offsetLeft + e.offsetWidth; }
+  caret.style.transform = `translate(${x}px,${w.offsetTop}px)`;
+}
+function scrollLines() {
+  const w = wordEls[wi]; if (!w) return;
+  lineH = wordEls[0].offsetHeight || lineH;
+  inner.style.transform = `translateY(${-Math.max(0, w.offsetTop - lineH)}px)`;
+}
+
+/* ---------- stats ---------- */
+function calc(el) {
+  let correct = 0, all = 0;
+  for (let i = 0; i < wi; i++) {
+    const t = typed[i] || '';
+    if (t === words[i]) correct += words[i].length + 1;
+    all += t.length + 1;
+  }
+  const cur = inp.value, target = words[wi] || '';
+  for (let k = 0; k < cur.length; k++) if (cur[k] === target[k]) correct++;
+  all += cur.length;
+  const min = Math.max(el, 0.5) / 60;
+  const tk = ck + wk;
+  return { wpm: correct / 5 / min, raw: all / 5 / min, acc: tk ? ck / tk * 100 : 100 };
+}
+
+/* ---------- flow ---------- */
+function reset(keepWords) {
+  clearInterval(ticker); ticker = null;
+  capsLockWarnedThisTest = false;
+  started = false; finished = false; wi = 0; typed = []; ck = 0; wk = 0; keySecs = []; samples = []; prevLen = 0;
+  const s = db.settings;
+  if (!keepWords || !words.length) words = makeWords(s.type === 'time' ? 100 : s.n);
+  show('test');
+  $('#tMode').textContent = modeLabel();
+  renderWords();
+  inp.value = ''; inp.maxLength = words[0].length + 8;
+  $('#sMain').textContent = s.type === 'time' ? s.n : '0/' + s.n;
+  $('#sWpm').textContent = '–'; $('#sAcc').textContent = '100';
+  view.classList.add('idle');
+  inp.focus({ preventScroll: true });
+  syncFocus();
+  placeCaret();
+}
+function warnCapsLock() {
+  if (screen === 'test' && !started && capsLockOn && !capsLockWarnedThisTest) {
+    capsLockWarnedThisTest = true;
+    alert("PLEASE TURN OFF CAPS LOCK/ALL CAPITAL ON YOUR COMPUTER/PHONE'S KEYBOARD");
+  }
+}
+function start() {
+  // Check again at the exact moment typing begins, in case the key state changed.
+  warnCapsLock();
+  started = true; t0 = performance.now();
+  view.classList.remove('idle');
+  ticker = setInterval(tick, 100);
+}
+function tick() {
+  if (!started || finished) return;
+  const el = (performance.now() - t0) / 1000, s = db.settings;
+  if (s.type === 'time') {
+    const left = Math.max(0, s.n - el);
+    $('#sMain').textContent = Math.ceil(left);
+    if (left <= 0) { finish(); return; }
+  } else {
+    $('#sMain').textContent = wi + '/' + s.n;
+  }
+  const c = calc(el);
+  $('#sWpm').textContent = el < 2 ? '–' : Math.round(c.wpm);
+  $('#sAcc').textContent = Math.round(c.acc);
+  while (samples.length < Math.floor(el)) samples.push({ wpm: c.wpm, raw: c.raw });
+}
+function commit(w) {
+  typed[wi] = w;
+  if (w !== words[wi]) wordEls[wi].classList.add('wrong');
+  wi++;
+  if (db.settings.type === 'time' && wi > words.length - 40) appendWords(60);
+  inp.maxLength = (words[wi] || '').length + 8;
+  scrollLines(); placeCaret();
+}
+function finish() {
+  if (finished) return;
+  finished = true; clearInterval(ticker); ticker = null;
+  const s = db.settings;
+  const el = s.type === 'time' ? s.n : Math.max((performance.now() - t0) / 1000, 0.5);
+  const c = calc(el);
+  samples.push({ wpm: c.wpm, raw: c.raw });
+  const full = keySecs.slice(0, Math.floor(el));
+  let cons = null;
+  if (Math.floor(el) >= 3) {
+    const arr = Array.from({ length: Math.floor(el) }, (_, i) => full[i] || 0);
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+    const sd = Math.sqrt(arr.reduce((a, b) => a + (b - mean) ** 2, 0) / arr.length);
+    cons = mean ? Math.max(0, Math.round(100 * (1 - sd / mean))) : 0;
+  }
+  const wpm = Math.round(c.wpm), acc = Math.round(c.acc);
+  const key = cfgKey();
+  const isBest = wpm > (db.best[key] || 0);
+  if (isBest) db.best[key] = wpm;
+  db.runs.push({ t: Date.now(), label: shortLabel(), wpm, acc });
+  db.runs = db.runs.slice(-30);
+  // Award test EXP and the once-per-day streak bonus before persisting results.
+  const wordsCompleted = typed.filter(Boolean).length + (s.type === 'time' && inp.value.trim() ? 1 : 0);
+  recordQuestTest(acc, wordsCompleted);
+  awardProgress(wpm, acc);
+  save();
+  lastResult = { t: Date.now(), wpm, acc, raw: Math.round(c.raw), ck, wk, cons, type: s.type, n: s.n, mode: s.mode, punct: s.punct, numbers: s.numbers,
+    samples: samples.map(x => ({ wpm: x.wpm, raw: x.raw })), rank: currentRank(db.progress.exp).name, best: isBest, elapsed: Math.max(0,(performance.now()-t0)/1000), wordsTyped: wordsCompleted, tokensEarned: (db.progress.lastGain && db.progress.lastGain.tokens) || 0 };
+
+  $('#rWpm').textContent = wpm;
+  $('#rAcc').textContent = acc;
+  $('#rRaw').textContent = Math.round(c.raw);
+  $('#rChars').innerHTML = `${ck} <small>/</small> <span style="color:var(--err)">${wk}</span>`;
+  $('#rCons').innerHTML = cons == null ? '–' : cons + '<small>%</small>';
+  $('#rMode').textContent = modeLabel();
+  $('#rTimeSpent').textContent = `${Math.floor(lastResult.elapsed/60)}m ${Math.floor(lastResult.elapsed%60)}s`;
+  $('#rWordsTyped').textContent = lastResult.wordsTyped;
+  $('#rTokensEarned').textContent = `+${lastResult.tokensEarned}`;
+  $('#rTimeSpent').parentElement.classList.toggle('hide', s.type === 'time');
+  $('#rWordsTyped').parentElement.classList.toggle('hide', s.type !== 'time');
+  $('#newBest').classList.toggle('hide', !isBest);
+  drawChart(samples);
+  $('#recentList').innerHTML = db.runs.slice(-5).reverse().map(r =>
+    `<div><span>${new Date(r.t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}, ${r.label}</span><span><b>${r.wpm}</b> wpm at ${r.acc}%</span></div>`).join('');
+  renderHome();
+  inp.blur();
+  syncFocus();
+  show('results');
+}
+
+/* ---------- chart ---------- */
+function drawChart(sm) {
+  const svg = $('#chart');
+  if (sm.length < 2) { svg.innerHTML = ''; svg.classList.add('hide'); return; }
+  svg.classList.remove('hide');
+  const W = 640, H = 200, p = { l: 34, r: 8, t: 10, b: 24 };
+  const max = Math.max(20, ...sm.map(s => Math.max(s.wpm, s.raw))) * 1.1;
+  const n = sm.length;
+  const x = i => p.l + (i / (n - 1)) * (W - p.l - p.r);
+  const y = v => H - p.b - (v / max) * (H - p.t - p.b);
+  let g = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = max * i / 4, yy = y(v);
+    g += `<line class="grid" x1="${p.l}" x2="${W - p.r}" y1="${yy}" y2="${yy}"/><text x="${p.l - 7}" y="${yy + 4}" text-anchor="end">${Math.round(v)}</text>`;
+  }
+  const step = Math.max(1, Math.ceil(n / 8));
+  for (let i = 0; i < n; i += step) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${i + 1}s</text>`;
+  const line = k => sm.map((s, i) => `${x(i).toFixed(1)},${y(s[k]).toFixed(1)}`).join(' ');
+  svg.innerHTML = g + `<polyline class="lr" points="${line('raw')}"/><polyline class="lw" points="${line('wpm')}"/>`;
+}
+
+/* ---------- input ---------- */
+inp.addEventListener('input', () => {
+  if (finished) { inp.value = ''; return; }
+  const v = inp.value, target = words[wi] || '';
+  const sp = v.indexOf(' ');
+  if (sp !== -1) {
+    const w = v.slice(0, sp);
+    inp.value = ''; prevLen = 0;
+    if (!w.length) { placeCaret(); return; }
+    if (!started) start();
+    w === target ? ck++ : wk++;
+    const sec = Math.floor((performance.now() - t0) / 1000); keySecs[sec] = (keySecs[sec] || 0) + 1;
+    paint(wi, w);
+    if (db.settings.type === 'words' && wi === words.length - 1) { typed[wi] = w; wi++; finish(); return; }
+    commit(w);
+    return;
+  }
+  if (!started && v.length) start();
+  if (v.length > prevLen) {
+    const sec = Math.floor((performance.now() - t0) / 1000);
+    for (let k = prevLen; k < v.length; k++) { v[k] === target[k] ? ck++ : wk++; keySecs[sec] = (keySecs[sec] || 0) + 1; }
+  }
+  prevLen = v.length;
+  paint(wi, v); placeCaret();
+  if (db.settings.type === 'words' && wi === words.length - 1 && v.length >= target.length) finish();
+});
+function prevWord() {
+  if (finished || wi === 0 || isHard()) return false;
+  wi--;
+  const w = typed[wi] || '';
+  w === words[wi] ? ck-- : wk--;
+  typed.length = wi;
+  wordEls[wi].classList.remove('wrong');
+  inp.value = w; prevLen = w.length;
+  inp.maxLength = words[wi].length + 8;
+  paint(wi, w); scrollLines(); placeCaret();
+  return true;
+}
+inp.addEventListener('keydown', e => { if (e.key === 'Backspace' && inp.value === '' && prevWord()) e.preventDefault(); });
+inp.addEventListener('beforeinput', e => { if (e.inputType === 'deleteContentBackward' && inp.value === '' && prevWord()) e.preventDefault(); });
+inp.addEventListener('paste', e => e.preventDefault());
+inp.addEventListener('focus', syncFocus);
+inp.addEventListener('blur', syncFocus);
+view.addEventListener('pointerdown', e => { e.preventDefault(); inp.focus(); syncFocus(); });
+
+document.addEventListener('keydown', e => {
+  if (typeof e.getModifierState === 'function') capsLockOn = e.getModifierState('CapsLock');
+  if (e.key === 'CapsLock' && typeof e.getModifierState !== 'function') capsLockOn = !capsLockOn;
+  warnCapsLock();
+  if (screen === 'splash') { if (splashReady) { e.preventDefault(); dismissSplash(); } return; }
+  const onBtn = document.activeElement && document.activeElement.tagName === 'BUTTON';
+  if (e.key === 'Escape') { if (screen !== 'home') { e.preventDefault(); back(); } }
+  else if (screen === 'opts') { if (e.key === 'Enter' && !onBtn) { e.preventDefault(); reset(false); } }
+  else if (screen !== 'test' && screen !== 'results') return;
+  else if (e.key === 'Tab') { e.preventDefault(); reset(false); }
+  else if (e.key === 'Enter' && finished) { e.preventDefault(); reset(false); }
+  else if (screen === 'test' && !finished && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
+           && document.activeElement !== inp && !onBtn) {
+    inp.focus();
+  }
+});
+$('#nextBtn').onclick = () => reset(false);
+$('#retryBtn').onclick = () => reset(true);
+$('#resetBtn').onclick = () => {
+  if (confirm('Clear all saved bests and run history?')) { db.best = {}; db.runs = []; db.progress.tests = 0; save(); renderHome(); }
+};
+window.addEventListener('resize', () => { if (screen === 'test' && !finished) { scrollLines(); placeCaret(); } });
+
+/* ---------- keep the typing area above the on-screen keyboard ---------- */
+const vv = window.visualViewport, rootStyle = document.documentElement.style;
+let kbRaf = 0;
+function kbFit(scrollToView) {
+  const typing = screen === 'test' && !finished && document.activeElement === inp;
+  let kb = 0;
+  if (typing && vv) { const h = window.innerHeight - vv.height; if (h > 120) kb = Math.round(h); }
+  document.body.classList.toggle('kb-open', typing && kb > 0);
+  rootStyle.setProperty('--kb', kb + 'px');
+  if (!typing || !scrollToView) return;
+  const r = view.getBoundingClientRect(), hud = document.querySelector('.hud').getBoundingClientRect();
+  const top = vv ? vv.offsetTop : 0, bottom = top + (vv ? vv.height : window.innerHeight);
+  if (r.bottom + 16 <= bottom && r.top >= top) return;
+  if (r.bottom - hud.top + 28 <= bottom - top) window.scrollBy(0, hud.top - top - 12);
+  else window.scrollBy(0, r.bottom + 20 - bottom);
+}
+const kbSchedule = scroll => { if (kbRaf) return; kbRaf = requestAnimationFrame(() => { kbRaf = 0; kbFit(scroll); }); };
+if (vv) { vv.addEventListener('resize', () => kbSchedule(true)); vv.addEventListener('scroll', () => kbSchedule(false)); }
+inp.addEventListener('focus', () => { kbSchedule(true); setTimeout(() => kbFit(true), 350); });
+inp.addEventListener('blur', () => setTimeout(() => kbFit(false), 60));
+inp.addEventListener('input', () => kbSchedule(true));
+
+
+/* ---------- test certificate ---------- */
+const CERT_W = 1600, CERT_H = 1130, CERT_SCALE = 1.5;
+const CERT_SERIF = 'Georgia,"Iowan Old Style","Palatino Linotype","Book Antiqua","Times New Roman",serif';
+const CERT_SANS = 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
+const PLATING = {
+  normal: { paper: ['#fffefb', '#f1ede2'], ink: '#1b2230', sub: '#5b6474', sealInk: '#ffffff' },
+  silver: { paper: ['#fcfdfe', '#e4e9ee'], ink: '#1b2230', sub: '#566070', sealInk: '#363c43',
+    frame: ['#59606a', '#c9cfd6', '#ffffff', '#8f979f', '#dfe3e8', '#59606a'], text: ['#4b525a', '#9aa2aa', '#4b525a'],
+    seal: ['#6a7179', '#e6eaee', '#ffffff', '#9aa2aa', '#d3d8dd'] },
+  gold: { paper: ['#fffbf0', '#f3e5bf'], ink: '#231c10', sub: '#6a5a3a', sealInk: '#5a3b06',
+    frame: ['#7a5410', '#e0b84e', '#fff1b3', '#c8962c', '#f0cf72', '#7a5410'], text: ['#6e4a0c', '#c08a22', '#6e4a0c'],
+    seal: ['#8a6014', '#f1cf6a', '#fff4c2', '#cf9d31', '#a8741a'] }
+};
+function shade(hex, f) {
+  const n = parseInt(hex.slice(1), 16), t = f < 0 ? 0 : 255, k = Math.abs(f);
+  const ch = v => Math.round((t - v) * k + v);
+  return '#' + ((1 << 24) + (ch(n >> 16) << 16) + (ch((n >> 8) & 255) << 8) + ch(n & 255)).toString(16).slice(1);
+}
+function platePalette(key) {
+  const base = PLATING[key] || PLATING.normal;
+  if (key !== 'silver' && key !== 'gold') {
+    const acc = (ACCENTS[db.settings.accent] || ACCENTS[0])[1];
+    return { ...base, acc, line: acc, frame: ['#1b2230', '#1b2230'], text: [acc, acc], seal: [shade(acc, -.35), acc, shade(acc, .4), acc, shade(acc, -.3)] };
+  }
+  return { ...base, acc: base.text[1], line: base.text[1] };
+}
+// 16 levels from net speed; poor accuracy drops the level (under 85% = one step, under 70% = two steps).
+const CERT_LEVELS = [[0, 'Newcomer'], [10, 'Beginner'], [20, 'Novice'], [28, 'Apprentice'], [36, 'Developing'], [44, 'Competent'], [52, 'Proficient'], [60, 'Skilled'],
+  [70, 'Advanced'], [80, 'Swift'], [92, 'Expert'], [105, 'Master'], [120, 'Elite'], [140, 'Virtuoso'], [160, 'Legend'], [190, 'Mythic']];
+function certTier(wpm, acc) {
+  let i = 0;
+  CERT_LEVELS.forEach(([min], k) => { if (wpm >= min) i = k; });
+  i = Math.max(0, i - (acc < 70 ? 2 : acc < 85 ? 1 : 0));
+  return { idx: i, name: CERT_LEVELS[i][1], total: CERT_LEVELS.length };
+}
+function certDesc(r) {
+  const len = r.type === 'time' ? r.n + '-second' : r.n + '-word';
+  const mode = MODES[r.mode][0] + ' mode';
+  const ex = r.punct && r.numbers ? ' with punctuation and numbers' : r.punct ? ' with punctuation' : r.numbers ? ' with numbers' : '';
+  return `a ${len} ${mode} typing test${ex}`;
+}
+function drawCert(cv, r, key, rawName) {
+  const P = platePalette(key), W = CERT_W, H = CERT_H, SER = CERT_SERIF, SANS = CERT_SANS, T = certTier(r.wpm, r.acc);
+  cv.width = W * CERT_SCALE; cv.height = H * CERT_SCALE;
+  const g = cv.getContext('2d');
+  g.setTransform(CERT_SCALE, 0, 0, CERT_SCALE, 0, 0);
+  g.textBaseline = 'alphabetic';
+  const lin = (x0, y0, x1, y1, stops) => {
+    const gr = g.createLinearGradient(x0, y0, x1, y1);
+    stops.forEach((c, i) => gr.addColorStop(stops.length === 1 ? 0 : i / (stops.length - 1), c));
+    return gr;
+  };
+  const metal = lin(0, 0, W, H, P.frame);
+  const tg = (cx, y, w, h) => lin(cx - w / 2, y - h, cx + w / 2, y, P.text);
+  const spaced = (txt, x, y, sp, align = 'center') => {
+    const cs = [...txt], ws = cs.map(ch => g.measureText(ch).width);
+    const tot = ws.reduce((a, b) => a + b, 0) + sp * (cs.length - 1);
+    let cx = align === 'center' ? x - tot / 2 : align === 'right' ? x - tot : x;
+    g.textAlign = 'left';
+    cs.forEach((ch, i) => { g.fillText(ch, cx, y); cx += ws[i] + sp; });
+    g.textAlign = 'center';
+  };
+  const diamond = (x, y, sz) => { g.beginPath(); g.moveTo(x, y - sz); g.lineTo(x + sz, y); g.lineTo(x, y + sz); g.lineTo(x - sz, y); g.closePath(); g.fill(); };
+  const hline = (x0, x1, y, lw) => { g.lineWidth = lw; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke(); };
+
+  // paper
+  g.fillStyle = lin(0, 0, W, H, P.paper); g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(W / 2, H * .45, 60, W / 2, H * .45, 850);
+  glow.addColorStop(0, 'rgba(255,255,255,.7)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, W, H);
+
+  // guilloche rosette behind the text
+  g.save();
+  g.beginPath(); g.rect(84, 84, W - 168, H - 168); g.clip();
+  g.strokeStyle = metal; g.globalAlpha = .1; g.lineWidth = 1.1;
+  [[380, 76, 50], [380, 76, 100], [380, 76, 150], [330, 55, 80]].forEach(([R, rr, d]) => {
+    const k = (R - rr) / rr, steps = 1800;
+    g.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps * Math.PI * 2;
+      const x = W / 2 + (R - rr) * Math.cos(t) + d * Math.cos(k * t), y = H / 2 + (R - rr) * Math.sin(t) - d * Math.sin(k * t);
+      i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.stroke();
+  });
+  g.restore();
+
+  // frame: hairline, thick plated border, woven wave band, inner lines
+  g.strokeStyle = metal; g.globalAlpha = .7; g.lineWidth = 1.5; g.strokeRect(34, 34, W - 68, H - 68);
+  g.globalAlpha = 1; g.lineWidth = 12; g.strokeRect(46, 46, W - 92, H - 92);
+  g.globalAlpha = .65; g.lineWidth = 1.2;
+  [0, 2.1, 4.2].forEach(ph => {
+    const x0 = 59, y0 = 59, x1 = W - 59, y1 = H - 59;
+    g.beginPath(); let first = true;
+    const seg = (ax, ay, bx, by, nx, ny) => {
+      const len = Math.hypot(bx - ax, by - ay), n = Math.ceil(len / 3);
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, o = 4.5 * Math.sin(t * len * .12 + ph);
+        const x = ax + (bx - ax) * t + nx * o, y = ay + (by - ay) * t + ny * o;
+        first ? g.moveTo(x, y) : g.lineTo(x, y); first = false;
+      }
+    };
+    seg(x0, y0, x1, y0, 0, 1); seg(x1, y0, x1, y1, -1, 0); seg(x1, y1, x0, y1, 0, -1); seg(x0, y1, x0, y0, 1, 0);
+    g.closePath(); g.stroke();
+  });
+  g.globalAlpha = 1; g.lineWidth = 3; g.strokeRect(72, 72, W - 144, H - 144);
+  g.strokeStyle = P.line; g.globalAlpha = .75; g.lineWidth = 1.5; g.strokeRect(80, 80, W - 160, H - 160);
+  g.globalAlpha = 1;
+  // corner ornaments
+  [[100, 100, 0], [W - 100, 100, 1], [W - 100, H - 100, 2], [100, H - 100, 3]].forEach(([x, y, q]) => {
+    g.save(); g.translate(x, y); g.rotate(q * Math.PI / 2);
+    g.strokeStyle = metal; g.lineWidth = 2;
+    [22, 34, 46].forEach(R => { g.beginPath(); g.arc(0, 0, R, 0, Math.PI / 2); g.stroke(); });
+    g.fillStyle = metal; diamond(60, 60, 7);
+    g.restore();
+  });
+
+  g.textAlign = 'center';
+  // wordmark
+  g.font = `700 42px ${SER}`;
+  const kw = g.measureText('key').width, sw = g.measureText('stroke').width, wx = W / 2 - (kw + sw) / 2;
+  g.textAlign = 'left'; g.fillStyle = P.ink; g.fillText('key', wx, 134);
+  g.fillStyle = tg(wx + kw + sw / 2, 134, sw, 42); g.fillText('stroke', wx + kw, 134);
+  g.textAlign = 'center';
+  g.strokeStyle = metal; hline(380, wx - 34, 120, 2); hline(wx + kw + sw + 34, W - 380, 120, 2);
+  // title
+  g.font = `700 74px ${SER}`; g.fillStyle = tg(W / 2, 228, 860, 74);
+  spaced('CERTIFICATE', W / 2, 228, 24);
+  g.font = `italic 400 46px ${SER}`; g.fillStyle = P.ink; g.fillText('of Typing Performance', W / 2, 282);
+  // level plaque
+  g.font = `700 19px ${SANS}`;
+  const lvLab = 'LEVEL ' + (T.idx + 1), lvCh = [...lvLab];
+  const labW = lvCh.reduce((acc, ch) => acc + g.measureText(ch).width, 0) + 5 * (lvCh.length - 1);
+  g.font = `700 36px ${SER}`;
+  const nmW = g.measureText(T.name).width, padX = 34, gap = 26;
+  const pw = padX * 2 + labW + gap * 2 + 2 + nmW, ph = 58, px = W / 2 - pw / 2, py = 312, pm = py + ph / 2;
+  g.beginPath(); g.roundRect ? g.roundRect(px, py, pw, ph, 29) : g.rect(px, py, pw, ph);
+  g.fillStyle = P.ink; g.globalAlpha = .05; g.fill(); g.globalAlpha = 1;
+  g.strokeStyle = metal; g.lineWidth = 2.5; g.stroke();
+  g.strokeStyle = metal; g.fillStyle = metal;
+  hline(px - 250, px - 24, pm, 2); hline(px + pw + 24, px + pw + 250, pm, 2);
+  diamond(px - 14, pm, 5); diamond(px + pw + 14, pm, 5); diamond(px - 262, pm, 4); diamond(px + pw + 262, pm, 4);
+  g.font = `700 19px ${SANS}`; g.fillStyle = P.sub;
+  spaced(lvLab, px + padX + labW / 2, pm + 7, 5);
+  const dvx = px + padX + labW + gap;
+  g.strokeStyle = P.sub; g.globalAlpha = .4; g.lineWidth = 2; g.beginPath(); g.moveTo(dvx, py + 14); g.lineTo(dvx, py + ph - 14); g.stroke(); g.globalAlpha = 1;
+  g.font = `700 36px ${SER}`; g.textAlign = 'center';
+  g.fillStyle = tg(dvx + gap + nmW / 2, pm + 12, nmW, 36); g.fillText(T.name, dvx + gap + nmW / 2, pm + 12);
+  g.font = `italic 400 27px ${SER}`; g.fillStyle = P.sub; g.fillText('This certifies that', W / 2, 406);
+  // name
+  const nm = (rawName || '').trim() || 'Keystroke Typist';
+  let sz = 84; g.font = `italic 700 ${sz}px ${SER}`;
+  while (g.measureText(nm).width > 1050 && sz > 40) { sz -= 4; g.font = `italic 700 ${sz}px ${SER}`; }
+  g.fillStyle = P.ink; g.fillText(nm, W / 2, 476);
+  const hw = Math.max(g.measureText(nm).width / 2 + 60, 320);
+  g.strokeStyle = metal; g.fillStyle = metal; hline(W / 2 - hw, W / 2 + hw, 496, 3); diamond(W / 2 - hw, 496, 5); diamond(W / 2 + hw, 496, 5);
+  g.font = `400 25px ${SER}`; g.fillStyle = P.sub;
+  g.fillText(`has completed ${certDesc(r)} with the results below`, W / 2, 538);
+
+  // headline results
+  g.strokeStyle = P.sub; g.globalAlpha = .3; g.lineWidth = 1.5;
+  [580, 1020].forEach(x => { g.beginPath(); g.moveTo(x, 568); g.lineTo(x, 742); g.stroke(); });
+  g.globalAlpha = 1;
+  const label = (txt, x, y) => { g.font = `700 17px ${SANS}`; g.fillStyle = P.sub; spaced(txt, x, y, 5); };
+  const num = (str, cx, base, size, suffix, ssize) => {
+    g.font = `700 ${size}px ${SER}`; const nw = g.measureText(str).width;
+    g.font = `700 ${ssize}px ${SER}`; const pw = suffix ? g.measureText(suffix).width + 6 : 0;
+    const x = cx - (nw + pw) / 2;
+    g.textAlign = 'left'; g.fillStyle = lin(x, base - size, x + nw + pw, base, P.text);
+    g.font = `700 ${size}px ${SER}`; g.fillText(str, x, base);
+    if (suffix) { g.font = `700 ${ssize}px ${SER}`; g.fillText(suffix, x + nw + 6, base - size * .42); }
+    g.textAlign = 'center';
+  };
+  label('NET SPEED', 340, 590); num(String(r.wpm), 340, 700, 126, '', 0);
+  g.font = `600 15px ${SANS}`; g.fillStyle = P.sub; spaced('WORDS PER MINUTE', 340, 732, 4);
+  label('ACCURACY', 1260, 590); num(String(r.acc), 1260, 700, 126, '%', 58);
+  g.font = `600 15px ${SANS}`; g.fillStyle = P.sub; spaced('KEYSTROKE ACCURACY', 1260, 732, 4);
+  if (r.samples.length >= 2) {
+    label('SPEED OVER TIME', 800, 590);
+    const x0 = 620, x1 = 980, y0 = 614, y1 = 704, n = r.samples.length;
+    const mx = Math.max(20, ...r.samples.map(q => Math.max(q.wpm, q.raw))) * 1.1;
+    const X = i => x0 + i / (n - 1) * (x1 - x0), Y = v => y1 - Math.min(v, mx) / mx * (y1 - y0);
+    g.strokeStyle = P.sub; g.globalAlpha = .25; g.lineWidth = 1;
+    [0, .5, 1].forEach(f => { const yy = y1 - f * (y1 - y0); g.beginPath(); g.moveTo(x0, yy); g.lineTo(x1, yy); g.stroke(); });
+    g.globalAlpha = 1;
+    g.beginPath(); r.samples.forEach((q, i) => i ? g.lineTo(X(i), Y(q.wpm)) : g.moveTo(X(i), Y(q.wpm)));
+    g.lineTo(x1, y1); g.lineTo(x0, y1); g.closePath(); g.fillStyle = P.acc; g.globalAlpha = .13; g.fill(); g.globalAlpha = 1;
+    g.setLineDash([7, 6]); g.strokeStyle = P.sub; g.globalAlpha = .75; g.lineWidth = 2;
+    g.beginPath(); r.samples.forEach((q, i) => i ? g.lineTo(X(i), Y(q.raw)) : g.moveTo(X(i), Y(q.raw))); g.stroke();
+    g.setLineDash([]); g.globalAlpha = 1;
+    g.strokeStyle = lin(x0, 0, x1, 0, P.text); g.lineWidth = 4.5; g.lineJoin = 'round'; g.lineCap = 'round';
+    g.beginPath(); r.samples.forEach((q, i) => i ? g.lineTo(X(i), Y(q.wpm)) : g.moveTo(X(i), Y(q.wpm))); g.stroke();
+    g.font = `600 14px ${SANS}`; g.fillStyle = P.sub; g.textAlign = 'left'; g.fillText('1s', x0, 728);
+    g.textAlign = 'right'; g.fillText(n + 's', x1, 728); g.textAlign = 'center';
+    g.fillText('solid: net wpm   dashed: raw wpm', 800, 728);
+  } else {
+    label('RANK EARNED', 800, 590);
+    g.font = `700 64px ${SER}`; g.fillStyle = tg(800, 676, 340, 64); g.fillText(r.rank, 800, 676);
+  }
+
+  // detail strip
+  const sx = 150, sy = 764, sw2 = 1300, sh = 82;
+  g.beginPath(); g.roundRect ? g.roundRect(sx, sy, sw2, sh, 14) : g.rect(sx, sy, sw2, sh);
+  g.fillStyle = P.ink; g.globalAlpha = .045; g.fill(); g.globalAlpha = .55; g.strokeStyle = metal; g.lineWidth = 1.6; g.stroke(); g.globalAlpha = 1;
+  const lenTxt = r.type === 'time' ? (r.n >= 60 && r.n % 60 === 0 ? r.n / 60 + ' min' : r.n + ' sec') : r.n + ' words';
+  const items = [['RAW SPEED', r.raw + ' wpm'], ['CORRECT KEYS', String(r.ck)], ['WRONG KEYS', String(r.wk)],
+    ['CONSISTENCY', r.cons == null ? '–' : r.cons + '%'], ['LENGTH', lenTxt], ['TIER', (T.idx + 1) + ' of ' + T.total]];
+  const cw = sw2 / items.length;
+  items.forEach(([lb, v], i) => {
+    const cx = sx + cw * i + cw / 2;
+    if (i) { g.strokeStyle = P.sub; g.globalAlpha = .28; g.lineWidth = 1.2; g.beginPath(); g.moveTo(sx + cw * i, sy + 14); g.lineTo(sx + cw * i, sy + sh - 14); g.stroke(); g.globalAlpha = 1; }
+    g.font = `700 13px ${SANS}`; g.fillStyle = P.sub; spaced(lb, cx, sy + 30, 3);
+    g.font = `700 30px ${SER}`; g.fillStyle = P.ink; g.fillText(v, cx, sy + 65);
+  });
+
+  // footer: date, seal, certificate number
+  const when = new Date(r.t), dateStr = when.toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+  const certId = 'KS-' + r.t.toString(36).toUpperCase().slice(-6) + '-' + r.wpm;
+  const foot = (cx, val, lb) => {
+    g.font = `400 28px ${SER}`; g.fillStyle = P.ink; g.fillText(val, cx, 956);
+    g.strokeStyle = metal; hline(cx - 175, cx + 175, 972, 1.8);
+    g.font = `700 14px ${SANS}`; g.fillStyle = P.sub; spaced(lb, cx, 998, 4);
+  };
+  foot(345, dateStr, 'DATE ISSUED'); foot(1255, certId, 'CERTIFICATE NUMBER');
+  // seal
+  const cx = W / 2, cy = 948, R = 84;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 16; g.shadowOffsetY = 6;
+  g.beginPath();
+  for (let i = 0; i <= 480; i++) { const a = i / 480 * Math.PI * 2, rad = R * (0.955 + 0.045 * Math.cos(a * 36)); const x = cx + rad * Math.cos(a), y = cy + rad * Math.sin(a); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+  g.closePath(); g.fillStyle = lin(cx - R, cy - R, cx + R, cy + R, P.seal); g.fill(); g.restore();
+  g.lineWidth = 2; g.strokeStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.arc(cx, cy, R * .8, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1.2; g.beginPath(); g.arc(cx, cy, R * .58, 0, Math.PI * 2); g.stroke();
+  const disc = g.createRadialGradient(cx - 10, cy - 14, 4, cx, cy, R * .58);
+  disc.addColorStop(0, 'rgba(255,255,255,.55)'); disc.addColorStop(1, 'rgba(255,255,255,.08)');
+  g.fillStyle = disc; g.beginPath(); g.arc(cx, cy, R * .57, 0, Math.PI * 2); g.fill();
+  const ring = 'KEYSTROKE • TYPING TEST • ', chars = [...ring];
+  g.font = `700 13px ${SANS}`; g.textAlign = 'center'; g.fillStyle = P.sealInk;
+  chars.forEach((ch, i) => {
+    const a = -Math.PI / 2 + i * (Math.PI * 2 / chars.length);
+    g.save(); g.translate(cx + R * .69 * Math.cos(a), cy + R * .69 * Math.sin(a)); g.rotate(a + Math.PI / 2); g.fillText(ch, 0, 4); g.restore();
+  });
+  g.font = `700 38px ${SER}`; g.fillStyle = P.sealInk; g.fillText(String(r.wpm), cx, cy + 8);
+  g.font = `700 11px ${SANS}`; spaced('WPM', cx, cy + 27, 3);
+}
+const certKey = () => db.settings.plating || 'normal';
+let certRaf = 0;
+function renderCert() {
+  if (!lastResult) return;
+  const key = certKey();
+  document.querySelectorAll('#platingSeg button').forEach(b => b.classList.toggle('on', b.dataset.plate === key));
+  $('#certStage').classList.toggle('metal', key !== 'normal');
+  drawCert($('#certCanvas'), lastResult, key, db.settings.certName);
+}
+function openCert() {
+  if (!lastResult) return;
+  $('#certName').value = db.settings.certName || '';
+  $('#certName').classList.toggle('empty', !$('#certName').value.trim());
+  show('cert'); renderCert();
+}
+const certFile = ext => `Keystroke-Certificate-${lastResult.wpm}WPM-${certKey()}.${ext}`;
+function saveBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+function makePdf(jpg, iw, ih) {
+  const enc = new TextEncoder(), chunks = [], offs = [];
+  let len = 0;
+  const add = d => { const b = typeof d === 'string' ? enc.encode(d) : d; chunks.push(b); len += b.length; };
+  const PW = 842, PH = Math.round(PW * ih / iw);
+  add('%PDF-1.4\n');
+  const obj = (n, body, stream) => {
+    offs[n] = len; add(`${n} 0 obj\n${body}\n`);
+    if (stream) { add('stream\n'); add(stream); add('\nendstream\n'); }
+    add('endobj\n');
+  };
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+  obj(4, `<< /Type /XObject /Subtype /Image /Width ${iw} /Height ${ih} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>`, jpg);
+  const content = `q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
+  obj(5, `<< /Length ${content.length} >>`, content);
+  const xref = len;
+  let x = 'xref\n0 6\n0000000000 65535 f \n';
+  for (let i = 1; i <= 5; i++) x += String(offs[i]).padStart(10, '0') + ' 00000 n \n';
+  add(x + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+$('#certBtn').onclick = openCert;
+$('#certBack').onclick = () => show('results');
+$('#certName').addEventListener('input', e => {
+  db.settings.certName = e.target.value.slice(0, 40); save();
+  e.target.classList.toggle('empty', !e.target.value.trim());
+  cancelAnimationFrame(certRaf); certRaf = requestAnimationFrame(renderCert);
+});
+$('#platingSeg').addEventListener('click', e => {
+  const b = e.target.closest('[data-plate]'); if (!b) return;
+  db.settings.plating = b.dataset.plate; save(); renderCert();
+});
+$('#certPng').onclick = () => { if (lastResult) $('#certCanvas').toBlob(b => b && saveBlob(b, certFile('png')), 'image/png'); };
+$('#certPdf').onclick = () => {
+  if (!lastResult) return;
+  const cv = $('#certCanvas'), bin = atob(cv.toDataURL('image/jpeg', .95).split(',')[1]);
+  const jpg = Uint8Array.from(bin, ch => ch.charCodeAt(0));
+  saveBlob(makePdf(jpg, cv.width, cv.height), certFile('pdf'));
+};
+try {
+  if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] })) {
+    $('#certShare').classList.remove('hide');
+    $('#certShare').onclick = () => {
+      if (!lastResult) return;
+      $('#certCanvas').toBlob(b => { if (b) navigator.share({ files: [new File([b], certFile('png'), { type: 'image/png' })], title: 'Keystroke certificate' }).catch(() => {}); }, 'image/png');
+    };
+  }
+} catch (e) {}
+
+fillRankIcons();
+show('splash'); runSplash();
+})();
+</script>
+</body>
+</html>
